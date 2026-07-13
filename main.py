@@ -7,6 +7,7 @@ import hashlib
 import hmac
 import time
 import base64
+import urllib.request
 import asyncio
 from pathlib import Path
 from urllib.parse import urlparse
@@ -16,9 +17,9 @@ CONFIG = json.loads((BASE / "config.json").read_text(encoding="utf-8"))
 DATA = BASE / "data"
 DATA.mkdir(exist_ok=True)
 
-AI_URL     = CONFIG.get("ai_url", "http://192.168.2.216:1234/v1/chat/completions")
-AI_KEY     = CONFIG.get("ai_key", "lm-studio")
-AI_MODEL   = CONFIG.get("ai_model", "qwen3.5-9b")
+AI_URL     = CONFIG.get("ai_url", "")
+AI_KEY     = CONFIG.get("ai_key", "")
+AI_MODEL   = CONFIG.get("ai_model", "")
 
 sessions = {}
 
@@ -84,18 +85,65 @@ XIAOZHI_SYSTEM = """你是"小智"，一个帮小朋友做Arduino硬件项目的
 
 ARDUINO_KEYWORDS = ["arduino", "nano", "uno", "mega", "leonardo", "micro", "due", "ch340", "ch341", "cp2102", "ft232"]
 
-FALLBACK_MODELS = ["agnes-1.5-flash", "gpt-4o-mini", "gpt-3.5-turbo"]
+ACP_URL = "http://127.0.0.1:18791"
+ACP_AUTH = "Basic " + base64.b64encode(b"opencode:greenleaf2026").decode()
+
+def acp_post(path, body=None):
+    req = urllib.request.Request(
+        ACP_URL + path,
+        data=json.dumps(body).encode("utf-8") if body else None,
+        headers={"Authorization": ACP_AUTH, "Content-Type": "application/json"},
+        method="POST"
+    )
+    with urllib.request.urlopen(req, timeout=60) as r:
+        return json.loads(r.read().decode("utf-8"))
 
 def call_ai(sid, user_msg):
     history = get_history(sid)
-    history.append({"role": "user", "content": user_msg})
-    messages = [{"role": "system", "content": XIAOZHI_SYSTEM}] + history[-20:]
+    ACP_SESSIONS = getattr(call_ai, "acp_sessions", {})
+    call_ai.acp_sessions = ACP_SESSIONS
+
+    ses_id = ACP_SESSIONS.get(sid)
+    if not ses_id:
+        try:
+            ses = acp_post("/session", {"title": f"xiaozhi_{sid}"})
+            ses_id = ses.get("id")
+            if ses_id:
+                ACP_SESSIONS[sid] = ses_id
+                acp_post(f"/session/{ses_id}/message", {"parts": [{"type": "text", "text": XIAOZHI_SYSTEM}]})
+            else:
+                with open(BASE / "error.log", "a", encoding="utf-8") as f:
+                    f.write(f"[ACP] create session returned no id: {ses}\n")
+        except Exception as e:
+            with open(BASE / "error.log", "a", encoding="utf-8") as f:
+                f.write(f"[ACP] create session exception: {type(e).__name__}: {e}\n")
+            ses_id = None
+
+    if ses_id:
+        history.append({"role": "user", "content": user_msg})
+        ctx = "\n".join(
+            f"{'小朋友' if m['role']=='user' else '小智'}：{m['content']}"
+            for m in history
+        )
+        prompt = f"{ctx}\n\n小智的回答："
+        try:
+            resp = acp_post(f"/session/{ses_id}/message", {"parts": [{"type": "text", "text": prompt}]})
+            for part in resp.get("parts", []):
+                if part.get("type") == "text" and part.get("text", "").strip():
+                    reply = part["text"].strip()
+                    history.append({"role": "assistant", "content": reply})
+                    return reply
+        except Exception as e:
+            with open(BASE / "error.log", "a", encoding="utf-8") as f:
+                f.write(f"[ACP Error] {type(e).__name__}: {e}\n")
+            pass
+
     headers = {"Content-Type": "application/json", "Authorization": f"Bearer {AI_KEY}"}
-    models_to_try = [AI_MODEL] + [m for m in FALLBACK_MODELS if m != AI_MODEL]
+    messages = [{"role": "system", "content": XIAOZHI_SYSTEM}] + history[-20:]
+    models_to_try = [AI_MODEL, "agnes-1.5-flash", "gpt-4o-mini", "gpt-3.5-turbo"]
     for model in models_to_try:
         body = {"model": model, "messages": messages, "max_tokens": 2000, "temperature": 0.7}
         try:
-            import urllib.request
             import ssl
             ctx = ssl.create_default_context()
             ctx.check_hostname = False
@@ -107,7 +155,7 @@ def call_ai(sid, user_msg):
             if reply:
                 history.append({"role": "assistant", "content": reply})
                 return reply
-        except Exception:
+        except:
             continue
     return "AI服务暂时无法响应，请联系老师配置。"
 
@@ -204,26 +252,14 @@ def burn_arduino(code):
         return False, f"烧录异常：{e}"
 
 def tts_sync(text):
-    result = None
-    def run():
-        nonlocal result
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        try:
-            from edge_tts import Communicate
-            com = Communicate(text, "zh-CN-XiaoxiaoNeural", rate="-20%")
-            data = loop.run_until_complete(com.run())
-            result = data
-        except Exception as e:
-            result = e
-        finally:
-            loop.close()
-    t = threading.Thread(target=run, daemon=True)
-    t.start()
-    t.join(timeout=30)
-    if isinstance(result, Exception):
-        raise result
-    return result
+    from edge_tts import Communicate
+    chunks = []
+    for chunk in Communicate(text, "zh-CN-XiaoxiaoNeural", rate="-20%").stream_sync():
+        if chunk["type"] == "audio":
+            chunks.append(chunk["data"])
+    if not chunks:
+        raise Exception("TTS 没有生成音频数据")
+    return chunks
 
 class Handler(http.server.BaseHTTPRequestHandler):
     def do_GET(self):
@@ -237,7 +273,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
         elif path == "/api/projects":
             self.send_json(CONFIG.get("projects", []))
         elif path == "/api/ai-status":
-            self.send_json({"ok": bool(AI_KEY), "model": AI_MODEL, "url": AI_URL})
+            self.send_json({"ok": True, "model": "ACP+Agnes"})
         elif path == "/api/detect":
             self.send_json(detect_arduino_info())
         elif path == "/api/qrcode":
@@ -375,14 +411,30 @@ class Handler(http.server.BaseHTTPRequestHandler):
     def log_message(self, format, *args):
         pass
 
+def free_port(port):
+    import subprocess, signal
+    try:
+        out = subprocess.check_output(f"netstat -ano | findstr LISTENING | findstr :{port} ", shell=True).decode()
+        for line in out.strip().split("\n"):
+            parts = line.strip().split()
+            if parts and parts[-1].isdigit():
+                pid = int(parts[-1])
+                if pid != os.getpid():
+                    try:
+                        os.kill(pid, signal.SIGTERM)
+                        print(f"  已清理旧进程 PID {pid}")
+                    except:
+                        pass
+    except:
+        pass
+
 def main():
     port = CONFIG.get("port", 8080)
+    free_port(port)
     if not AI_KEY:
         print(f"[XiaoZhi] WARNING: ai_key not set in config.json")
     print(f"[XiaoZhi] http://localhost:{port} | model: {AI_MODEL}", flush=True)
-    class ReuseServer(http.server.HTTPServer):
-        allow_reuse_address = True
-    server = ReuseServer(("127.0.0.1", port), Handler)
+    server = http.server.HTTPServer(("127.0.0.1", port), Handler)
     threading.Timer(1.5, lambda: webbrowser.open(f"http://localhost:{port}")).start()
     try:
         server.serve_forever()

@@ -9,6 +9,7 @@ import time
 import base64
 import urllib.request
 import asyncio
+import re
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -83,6 +84,14 @@ N20减速电机+L298N驱动 - L298N接线：IN1->GPIO5, IN2->GPIO6, IN3->GPIO10,
 继电器模块 - 接线：VCC->5V, GND->GND, IN->数字口
   低电平触发（IN=LOW时吸合）"""
 
+def strip_md(text):
+    """去掉所有#和*的markdown符号"""
+    text = re.sub(r'#{1,6}\s+', '', text)
+    text = re.sub(r'\*\*([^*]*)\*\*', r'\1', text)
+    text = re.sub(r'\*([^*]*)\*', r'\1', text)
+    text = text.replace('**','').replace('*','')
+    return text
+
 ARDUINO_KEYWORDS = ["arduino", "nano", "uno", "mega", "leonardo", "micro", "due", "ch340", "ch341", "cp2102", "ft232"]
 
 ACP_URL = "http://127.0.0.1:18791"
@@ -130,13 +139,7 @@ def call_ai(sid, user_msg):
             resp = acp_post(f"/session/{ses_id}/message", {"parts": [{"type": "text", "text": prompt}]})
             for part in resp.get("parts", []):
                 if part.get("type") == "text" and part.get("text", "").strip():
-                    reply = part["text"].strip()
-                    # 去掉#和*等markdown符号
-                    reply = reply.replace("## ","").replace("### ","").replace("#### ","")
-                    reply = reply.replace("**","").replace("*","")
-                    reply = reply.replace("# ","")
-                    reply = reply.replace("```\n","```").replace("```arduino\n","```arduino\n")
-                    reply = reply.strip()
+                    reply = strip_md(part["text"].strip())
                     history.append({"role": "assistant", "content": reply})
                     return reply
         except Exception as e:
@@ -159,7 +162,7 @@ def call_ai(sid, user_msg):
                 data = json.loads(resp.read().decode("utf-8"))
             reply = data.get("choices", [{}])[0].get("message", {}).get("content", "")
             if reply:
-                reply = reply.replace("**","").replace("*","").replace("## ","").replace("### ","").replace("# ","")
+                reply = strip_md(reply)
                 history.append({"role": "assistant", "content": reply})
                 return reply
         except:

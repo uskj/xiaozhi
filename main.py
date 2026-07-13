@@ -37,51 +37,51 @@ XIAOZHI_SYSTEM = """你是"小智"，一个帮小朋友做Arduino硬件项目的
 如果烧录失败，帮小朋友分析错误原因，给出修改建议。
 如果系统通知中包含硬件信息（如端口、芯片类型），请在回复中提到的检测到的开发板，让小朋友知道板子已连好。
 
-## 硬件速查表（常见问题直接回答，不要说"我不知道"）
+硬件速查表（常见问题直接回答，不要说"我不知道"）
 
-### 一、数码管/显示屏类
-**TM1637 4位数码管（最常用）**- 接线：VCC→5V, GND→GND, CLK→GPIO2, DIO→GPIO3
-- 安装库：在Arduino IDE里搜"TM1637"安装"TM1637"或"Adafruit_TM1637"
-- 常见故障：不亮=反了CLK/DIO线；数字乱跳=接线松了；只亮一个=库版本不对换另一个库
+数码管/显示屏类
+TM1637 4位数码管（最常用）- 接线：VCC->5V, GND->GND, CLK->GPIO2, DIO->GPIO3
+  安装库：在Arduino IDE里搜"TM1637"安装"TM1637"或"Adafruit_TM1637"
+  常见故障：不亮=反了CLK/DIO线；数字乱跳=接线松了；只亮一个=库版本不对换另一个库
 
-**OLED 0.96寸（I2C接口）**- 接线：VCC→5V, GND→GND, SDA→A4, SCL→A5
-- 安装库："U8g2"或"Adafruit_SSD1306"
-- 常见问题：黑屏=I2C地址不对，用"I2C Scanner"程序扫地址（通常0x3C或0x3D）
+OLED 0.96寸（I2C接口）- 接线：VCC->5V, GND->GND, SDA->A4, SCL->A5
+  安装库："U8g2"或"Adafruit_SSD1306"
+  常见问题：黑屏=I2C地址不对，用"I2C Scanner"程序扫地址（通常0x3C或0x3D）
 
-### 二、传感器类
-**DHT11/DHT22 温湿度传感器**- 接线：VCC→5V, GND→GND, DATA→GPIO2
-- 安装库："DHT sensor library"（Adafruit出品）
-- DHT11精度±2℃，DHT22精度±0.5℃更好
-- 常见问题：读不出数据=每次读取间隔至少2秒
+传感器类
+DHT11/DHT22 温湿度传感器 - 接线：VCC->5V, GND->GND, DATA->GPIO2
+  安装库："DHT sensor library"（Adafruit出品）
+  DHT11精度+-2度C，DHT22精度+-0.5度C更好
+  常见问题：读不出数据=每次读取间隔至少2秒
 
-**HC-SR04 超声波测距**- 接线：VCC→5V, GND→GND, TRIG→GPIO9, ECHO→GPIO10
-- 量程：2cm~400cm
-- 常见问题：测不到=换一个角度；最大距离不够=声音被吸收（软材料）
+HC-SR04 超声波测距 - 接线：VCC->5V, GND->GND, TRIG->GPIO9, ECHO->GPIO10
+  量程：2cm~400cm
+  常见问题：测不到=换一个角度；最大距离不够=声音被吸收（软材料）
 
-**DS18B20 温度传感器**- 接线：VCC→5V, GND→GND, DATA→GPIO4
-- 关键：DATA和VCC之间必须加4.7kΩ上拉电阻
-- 安装库："OneWire" + "DallasTemperature"
-- 常见问题：读出来-127℃=没接上拉电阻；数值不变=传感器进水了
+DS18B20 温度传感器 - 接线：VCC->5V, GND->GND, DATA->GPIO4
+  关键：DATA和VCC之间必须加4.7k欧姆上拉电阻
+  安装库："OneWire" + "DallasTemperature"
+  常见问题：读出来-127度C=没接上拉电阻；数值不变=传感器进水了
 
-**人体红外感应（HC-SR501/PIR）**- 接线：VCC→5V, GND→GND, OUT→数字口
-- 感应范围：3-7米，延时可调
-- 常见问题：刚上电时误触发是正常的（预热10-60秒）
+人体红外感应（HC-SR501/PIR）- 接线：VCC->5V, GND->GND, OUT->数字口
+  感应范围：3-7米，延时可调
+  常见问题：刚上电时误触发是正常的（预热10-60秒）
 
-**水位传感器**- 接线：VCC→5V, GND→GND, AO→模拟口
-- 探针不要长期通电（会电解腐蚀），用继电器控制供电
+水位传感器 - 接线：VCC->5V, GND->GND, AO->模拟口
+  探针不要长期通电（会电解腐蚀），用继电器控制供电
 
-### 三、执行器类
-**SG90 舵机**- 接线：棕色→GND, 红色→5V, 橙色→PWM口（3/5/6/9/10/11）
-- 角度范围：0°-180°
-- 常见问题：抖动=供电不足，单独供电别从Arduino取；不动=信号线接错
+执行器类
+SG90 舵机 - 接线：棕色->GND, 红色->5V, 橙色->PWM口（3/5/6/9/10/11）
+  角度范围：0-180度
+  常见问题：抖动=供电不足，单独供电别从Arduino取；不动=信号线接错
 
-**N20减速电机+L298N驱动**- L298N接线：IN1→GPIO5, IN2→GPIO6, IN3→GPIO10, IN4→GPIO11
-- ENA/ENB接跳线帽或PWM控制速度
-- 12V供电接L298N的12V输入，GND共地
-- 常见问题：电机转但方向反=对调两根线
+N20减速电机+L298N驱动 - L298N接线：IN1->GPIO5, IN2->GPIO6, IN3->GPIO10, IN4->GPIO11
+  ENA/ENB接跳线帽或PWM控制速度
+  12V供电接L298N的12V输入，GND共地
+  常见问题：电机转但方向反=对调两根线
 
-**继电器模块**- 接线：VCC→5V, GND→GND, IN→数字口
-- 低电平触发（IN=LOW时吸合）"""
+继电器模块 - 接线：VCC->5V, GND->GND, IN->数字口
+  低电平触发（IN=LOW时吸合）"""
 
 ARDUINO_KEYWORDS = ["arduino", "nano", "uno", "mega", "leonardo", "micro", "due", "ch340", "ch341", "cp2102", "ft232"]
 
@@ -131,6 +131,12 @@ def call_ai(sid, user_msg):
             for part in resp.get("parts", []):
                 if part.get("type") == "text" and part.get("text", "").strip():
                     reply = part["text"].strip()
+                    # 去掉#和*等markdown符号
+                    reply = reply.replace("## ","").replace("### ","").replace("#### ","")
+                    reply = reply.replace("**","").replace("*","")
+                    reply = reply.replace("# ","")
+                    reply = reply.replace("```\n","```").replace("```arduino\n","```arduino\n")
+                    reply = reply.strip()
                     history.append({"role": "assistant", "content": reply})
                     return reply
         except Exception as e:
@@ -153,6 +159,7 @@ def call_ai(sid, user_msg):
                 data = json.loads(resp.read().decode("utf-8"))
             reply = data.get("choices", [{}])[0].get("message", {}).get("content", "")
             if reply:
+                reply = reply.replace("**","").replace("*","").replace("## ","").replace("### ","").replace("# ","")
                 history.append({"role": "assistant", "content": reply})
                 return reply
         except:

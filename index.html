@@ -1,0 +1,919 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🤖</text></svg>">
+<title>小智造物</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=ZCOOL+KuaiLe&family=Nunito:wght@600;700;800&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#FAFBFC;--surface:#FFF;--border:#F0F0F0;
+  --text:#1A1A1A;--text2:#8A8F98;--text3:#C4C8CE;
+  --accent:#3B5BDB;--accent-light:#EDF2FF;
+  --green:#2B8A3E;--green-bg:#EBFBEE;
+  --orange:#E8590C;--orange-bg:#FFF4E6;
+  --purple:#7048E8;--purple-bg:#F3F0FF;
+  --red:#D6336C;
+  --r:12px;--r2:16px;
+  --sh:0 1px 3px rgba(0,0,0,.04);
+  --sh2:0 4px 12px rgba(0,0,0,.06);
+}
+body{
+  font-family:'Nunito','ZCOOL KuaiLe',-apple-system,BlinkMacSystemFont,'SF Pro Text','Helvetica Neue','PingFang SC',sans-serif;
+  background:var(--bg);color:var(--text);
+  min-height:100vh;overflow-x:hidden;
+  -webkit-font-smoothing:antialiased;
+  letter-spacing:-.01em;
+  font-size:16px;
+}
+
+/* ── 导航 ── */
+nav{
+  position:fixed;bottom:0;left:0;right:0;
+  background:rgba(255,255,255,.92);
+  backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  border-top:1px solid var(--border);
+  display:flex;z-index:100;
+}
+nav a{
+  flex:1;display:flex;flex-direction:column;align-items:center;
+  padding:8px 0 6px;gap:2px;cursor:pointer;
+  transition:color .15s;text-decoration:none;
+  -webkit-tap-highlight-color:transparent;
+}
+nav a .i{font-size:24px;opacity:.45;transition:opacity .15s,transform .15s}
+nav a .t{font-size:12px;font-weight:700;color:var(--text2);transition:color .15s}
+nav a.on .i{opacity:1;transform:scale(1.1)}
+nav a.on .t{color:var(--text);font-weight:700}
+
+/* ── 页面 ── */
+.P{display:none;padding:20px 20px 96px;min-height:100vh}
+.P.on{display:block;animation:fi .25s ease}
+@keyframes fi{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+/* ── 通用 ── */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r2);padding:20px;box-shadow:var(--sh)}
+.card+.card{margin-top:12px}
+.card:active{transform:scale(.985);transition:transform .1s}
+.sec{margin-bottom:28px}
+.sec-h{font-size:13px;font-weight:800;color:var(--text2);text-transform:uppercase;letter-spacing:.08em;margin-bottom:12px;padding-left:2px}
+
+/* ── 首页 ── */
+.banner{
+  background:var(--text);color:#FFF;
+  border-radius:var(--r2);padding:40px 24px 36px;
+  margin-bottom:28px;position:relative;overflow:hidden;
+}
+.banner::after{
+  content:'';position:absolute;top:-60px;right:-60px;
+  width:180px;height:180px;border-radius:50%;
+  background:rgba(255,255,255,.06);
+}
+.banner h1{font-size:26px;font-weight:800;line-height:1.3;margin-bottom:6px;position:relative}
+.banner p{font-size:15px;color:rgba(255,255,255,.5);position:relative}
+
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:28px}
+.stat{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:16px 12px;text-align:center}
+.stat .n{font-size:28px;font-weight:800;color:var(--text);line-height:1}
+.stat .l{font-size:13px;color:var(--text2);margin-top:4px}
+
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.act{padding:20px 16px;text-align:center}
+.act .em{font-size:32px;margin-bottom:8px;display:block}
+.act .tt{font-size:15px;font-weight:800;color:var(--text);margin-bottom:2px}
+.act .sb{font-size:13px;color:var(--text2)}
+
+.row{display:flex;align-items:center;gap:14px;padding:4px 0}
+.row .ri{width:48px;height:48px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;background:var(--bg)}
+.row .rn{font-size:16px;font-weight:700;color:var(--text)}
+.row .rd{font-size:14px;color:var(--text2);margin-top:1px}
+.row .info{flex:1;min-width:0}
+.row+.row{margin-top:12px;padding-top:12px;border-top:1px solid var(--border)}
+
+/* ── 项目页 ── */
+.tabs{display:flex;gap:6px;margin-bottom:16px;overflow-x:auto;padding-bottom:2px;scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}
+.tab{
+  padding:8px 16px;border-radius:8px;font-size:14px;font-weight:700;
+  border:1px solid var(--border);background:var(--surface);
+  cursor:pointer;white-space:nowrap;transition:all .15s;color:var(--text2);
+}
+.tab.on{background:var(--text);color:#FFF;border-color:var(--text)}
+.tab.on[data-c="g"]{background:var(--green);border-color:var(--green)}
+.tab.on[data-c="b"]{background:var(--accent);border-color:var(--accent)}
+.tab.on[data-c="o"]{background:var(--orange);border-color:var(--orange)}
+.tab.on[data-c="p"]{background:var(--purple);border-color:var(--purple)}
+
+.pcard{display:flex;gap:14px;align-items:center}
+.pcard .icon{width:56px;height:56px;border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:26px;flex-shrink:0;background:var(--bg)}
+.pcard .meta{flex:1;min-width:0}
+.pcard .pn{font-size:16px;font-weight:800}
+.pcard .pd{font-size:14px;color:var(--text2);margin-top:2px;display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden}
+.pcard .pp{font-size:12px;color:var(--text3);margin-top:4px}
+.pcard .arrow{color:var(--text3);font-size:16px;flex-shrink:0}
+.pcard+.pcard{margin-top:0;padding-top:12px;border-top:1px solid var(--border);margin-top:12px}
+
+.tag{display:inline-block;padding:3px 10px;border-radius:6px;font-size:12px;font-weight:800}
+.tag.g{background:var(--green-bg);color:var(--green)}
+.tag.b{background:var(--accent-light);color:var(--accent)}
+.tag.o{background:var(--orange-bg);color:var(--orange)}
+.tag.p{background:var(--purple-bg);color:var(--purple)}
+
+/* ── 聊天页 ── */
+.chat{display:flex;flex-direction:column;height:calc(100vh - 116px)}
+.msgs{flex:1;overflow-y:auto;padding:4px 0}
+.msg{max-width:80%;margin-bottom:8px;padding:14px 18px;border-radius:18px;line-height:1.6;font-size:16px;word-break:break-word;white-space:pre-wrap}
+.msg.user{background:var(--text);color:#FFF;margin-left:auto;border-bottom-right-radius:4px}
+.msg.ai{background:var(--surface);border:1px solid var(--border);color:var(--text);border-bottom-left-radius:4px}
+.msg.tool{background:var(--orange-bg);color:var(--orange);font-size:14px;border:1px solid #FFE8CC}
+.msg .cursor{display:inline-block;width:2px;height:14px;background:var(--accent);animation:blink .5s step-end infinite;vertical-align:middle;margin-left:2px}
+@keyframes blink{50%{opacity:0}}
+
+.inp{display:flex;gap:8px;align-items:center;padding:10px 0 4px}
+.inp input{
+  flex:1;padding:12px 16px;border:1px solid var(--border);
+  border-radius:12px;font-size:16px;outline:none;
+  background:var(--surface);transition:border .15s;
+  font-family:inherit;
+}
+.inp input:focus{border-color:var(--accent)}
+.ib{
+  width:44px;height:44px;border-radius:12px;border:none;
+  display:flex;align-items:center;justify-content:center;
+  font-size:18px;cursor:pointer;transition:all .15s;flex-shrink:0;
+}
+.ib:active{transform:scale(.92)}
+.ib.v{background:var(--orange);color:#FFF}
+.ib.v.on{background:var(--red);animation:glow 1.2s infinite}
+.ib.s{background:var(--accent);color:#FFF}
+@keyframes glow{0%,100%{box-shadow:0 0 0 0 rgba(214,51,108,.3)}50%{box-shadow:0 0 0 8px rgba(214,51,108,0)}}
+
+/* ── 商店页 ── */
+.hero-s{
+  background:linear-gradient(135deg,#1A1A1A 0%,#333 100%);
+  color:#FFF;border-radius:var(--r2);padding:36px 24px 32px;
+  margin-bottom:24px;position:relative;overflow:hidden;
+}
+.hero-s::after{content:'';position:absolute;bottom:-40px;right:-40px;width:140px;height:140px;border-radius:50%;background:rgba(255,255,255,.05)}
+.hero-s h2{font-size:24px;font-weight:800;position:relative}
+.hero-s p{font-size:14px;color:rgba(255,255,255,.45);margin-top:4px;position:relative}
+
+.price-card{position:relative;overflow:visible}
+.price-card .label{
+  position:absolute;top:-1px;right:16px;
+  padding:3px 12px;border-radius:0 0 6px 6px;
+  font-size:12px;font-weight:800;color:#FFF;
+}
+.price-card .label.hot{background:var(--orange)}
+.price-card .label.best{background:var(--accent)}
+.price-card .label.vip{background:var(--purple)}
+.price-card h3{font-size:18px;font-weight:800;margin-bottom:4px}
+.price-card .pri{font-size:32px;font-weight:800;margin-bottom:8px}
+.price-card .pri small{font-size:14px;color:var(--text2);font-weight:500}
+.price-card ul{list-style:none;margin:0 0 14px;padding:0}
+.price-card li{font-size:14px;color:var(--text2);padding:4px 0;padding-left:18px;position:relative}
+.price-card li::before{content:'';position:absolute;left:0;top:10px;width:6px;height:6px;border-radius:50%;background:var(--green)}
+.price-card .btn{
+  width:100%;padding:13px;border:none;border-radius:var(--r);
+  font-size:15px;font-weight:700;cursor:pointer;transition:opacity .15s;
+}
+.price-card .btn:active{opacity:.8}
+.btn.outline{background:var(--bg);color:var(--text);border:1px solid var(--border)}
+.btn.accent{background:var(--accent);color:#FFF}
+.btn.dark{background:var(--text);color:#FFF}
+.price-card.highlight{border:2px solid var(--accent)}
+
+.redeem{margin-top:16px}
+.redeem h4{font-size:15px;font-weight:700;margin-bottom:8px;color:var(--text2)}
+.redeem-row{display:flex;gap:8px}
+.redeem-row input{
+  flex:1;padding:12px 14px;border:1px solid var(--border);
+  border-radius:var(--r);font-size:15px;outline:none;font-family:inherit;
+}
+.redeem-row input:focus{border-color:var(--accent)}
+.redeem-row button{
+  padding:12px 18px;background:var(--green);color:#FFF;border:none;
+  border-radius:var(--r);font-weight:700;cursor:pointer;font-size:15px;
+}
+
+/* ── 我的页 ── */
+.profile{text-align:center;padding:20px 0 24px}
+.profile .av{
+  width:72px;height:72px;border-radius:50%;background:var(--bg);
+  display:flex;align-items:center;justify-content:center;
+  font-size:32px;margin:0 auto 10px;
+}
+.profile h2{font-size:22px;font-weight:800}
+.profile .sub{font-size:14px;color:var(--text2);margin-top:2px}
+
+.kv{display:flex;justify-content:space-between;align-items:center}
+.kv .k{font-size:15px;color:var(--text2)}
+.kv .v{font-size:15px;font-weight:700}
+.kv .v.g{color:var(--green)}.kv .v.r{color:var(--red)}
+.kv+.kv{margin-top:12px;padding-top:12px;border-top:1px solid var(--border)}
+
+.link-row{
+  display:flex;justify-content:space-between;align-items:center;
+  cursor:pointer;
+}
+.link-row:active{opacity:.6}
+.link-row .lk{font-size:15px;font-weight:700;display:flex;align-items:center;gap:6px}
+.link-row .la{color:var(--text3)}
+.link-row+.link-row{margin-top:12px;padding-top:12px;border-top:1px solid var(--border)}
+
+/* ── XP进度条 ── */
+.xp-bar-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:14px;margin-bottom:20px}
+.xp-info{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.xp-lvl{font-size:16px;font-weight:800;color:var(--accent)}
+.xp-val{font-size:13px;color:var(--text2);font-weight:700}
+.xp-track{height:10px;background:var(--bg);border-radius:5px;overflow:hidden}
+.xp-fill{height:100%;border-radius:5px;background:linear-gradient(90deg,var(--accent),var(--purple));transition:width .5s ease}
+
+/* ── 成就徽章 ── */
+.badge{display:flex;align-items:center;gap:10px;padding:8px 0}
+.badge+.badge{margin-top:8px;padding-top:8px;border-top:1px solid var(--border)}
+.badge-icon{font-size:24px;width:36px;text-align:center}
+.badge-name{font-size:14px;font-weight:700}
+.badge-desc{font-size:12px;color:var(--text2)}
+
+/* ── 弹窗 ── */
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;backdrop-filter:blur(6px)}
+.modal{
+  display:none;position:fixed;top:50%;left:50%;
+  transform:translate(-50%,-50%);
+  background:var(--surface);border-radius:var(--r2);
+  padding:28px 24px;z-index:201;text-align:center;
+  min-width:260px;max-width:82vw;
+  box-shadow:0 16px 48px rgba(0,0,0,.15);
+  animation:pop .2s ease;
+}
+@keyframes pop{from{opacity:0;transform:translate(-50%,-50%) scale(.95)}to{opacity:1;transform:translate(-50%,-50%) scale(1)}}
+.modal .mi{font-size:40px;margin-bottom:8px}
+.modal .mt{font-size:18px;font-weight:800;margin-bottom:4px}
+.modal .md{font-size:15px;color:var(--text2);margin-bottom:16px;line-height:1.6;white-space:pre-line}
+.modal button{
+  padding:12px 32px;background:var(--text);color:#FFF;border:none;
+  border-radius:var(--r);font-size:15px;font-weight:700;cursor:pointer;
+}
+
+/* ── 付费墙QR弹窗 ── */
+.pw-modal{min-width:320px;max-width:400px}
+.pw-head .pw-icon{font-size:36px;margin-bottom:4px}
+.pw-qr{margin:16px auto;width:fit-content}
+.pw-redeem{margin-top:12px}
+.pw-close{background:transparent;color:var(--text2);border:1px solid var(--border)}
+.pw-close:hover{background:var(--bg)}
+
+/* ── 烟花 ── */
+.fw{position:fixed;inset:0;pointer-events:none;z-index:999}
+.fw span{position:absolute;font-size:28px;animation:pop2 1.2s ease-out forwards}
+@keyframes pop2{0%{transform:scale(0);opacity:1}50%{transform:scale(1.2);opacity:.9}100%{transform:scale(.6);opacity:0}}
+
+/* ── 代码块 + 烧录按钮 ── */
+.code-block{
+  background:#1A1A1A;color:#E8E8E8;
+  border-radius:10px;padding:14px 16px;
+  font-family:'SF Mono','Fira Code',Consolas,monospace;
+  font-size:13px;line-height:1.5;
+  overflow-x:auto;margin:8px 0 4px;
+  white-space:pre;
+}
+.code-block code{margin:0}
+.burn-btn{
+  display:block;width:100%;
+  padding:12px;border:none;border-radius:10px;
+  background:var(--orange);color:#FFF;
+  font-size:15px;font-weight:700;cursor:pointer;
+  transition:all .15s;margin-bottom:4px;
+  font-family:inherit;
+}
+.burn-btn:active{transform:scale(.97);opacity:.9}
+.burn-btn:disabled{opacity:.8;cursor:not-allowed}
+</style>
+</head>
+<body>
+
+<nav>
+  <a class="on" onclick="go('home')"><span class="i">🏠</span><span class="t">首页</span></a>
+  <a onclick="go('proj')"><span class="i">🔧</span><span class="t">项目</span></a>
+  <a onclick="go('chat')"><span class="i">🤖</span><span class="t">小智</span></a>
+  <a onclick="go('store')"><span class="i">🛒</span><span class="t">商店</span></a>
+  <a onclick="go('me')"><span class="i">👤</span><span class="t">我的</span></a>
+</nav>
+
+<!-- 首页 -->
+<div class="P on" id="pg-home">
+  <div class="banner">
+    <h1>你好，小创客</h1>
+    <p>今天想做什么？</p>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="n" id="s1">0</div><div class="l">已完成</div></div>
+    <div class="stat"><div class="n" id="s2">0</div><div class="l">剩余小时</div></div>
+    <div class="stat"><div class="n" id="s3">3</div><div class="l">剩余免费</div></div>
+  </div>
+  <div class="xp-bar-wrap">
+    <div class="xp-info"><span class="xp-lvl" id="s-lvl">学徒</span><span class="xp-val" id="s-xp">0 XP</span></div>
+    <div class="xp-track"><div class="xp-fill" id="s-xpbar" style="width:0%"></div></div>
+  </div>
+
+  <div class="sec">
+    <div class="sec-h">快速开始</div>
+    <div class="grid2">
+      <div class="card act" onclick="go('proj')"><span class="em">⚡</span><div class="tt">全部项目</div><div class="sb">29+ 个</div></div>
+      <div class="card act" onclick="go('chat')"><span class="em">✦</span><div class="tt">和小智聊聊</div><div class="sb">AI 帮你写代码</div></div>
+      <div class="card act" onclick="flt('free')"><span class="em">○</span><div class="tt">免费体验</div><div class="sb">3 个项目</div></div>
+      <div class="card act" onclick="go('store')"><span class="em">△</span><div class="tt">开通年卡</div><div class="sb">¥198 / 年</div></div>
+    </div>
+  </div>
+
+  <div class="sec">
+    <div class="sec-h">最近项目</div>
+    <div class="card" onclick="flt('free')">
+      <div class="row"><div class="ri">🚦</div><div class="info"><div class="rn">红黄绿灯</div><div class="rd">三个LED模拟交通灯</div></div><span class="arrow">›</span></div>
+      <div class="row"><div class="ri">🎵</div><div class="info"><div class="rn">1234567发音</div><div class="rd">按钮按下发出音调</div></div><span class="arrow">›</span></div>
+      <div class="row"><div class="ri">💧</div><div class="info"><div class="rn">水泵浇水2秒</div><div class="rd">按钮启动水泵</div></div><span class="arrow">›</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- 项目页 -->
+<div class="P" id="pg-proj">
+  <div class="sec">
+    <div class="sec-h" style="margin-bottom:14px">选择项目</div>
+    <div class="tabs" id="tabs">
+      <div class="tab on" data-c="n" onclick="flt2(this,'all')">全部</div>
+      <div class="tab" data-c="g" onclick="flt2(this,'free')">免费</div>
+      <div class="tab" data-c="b" onclick="flt2(this,'beginner')">入门</div>
+      <div class="tab" data-c="o" onclick="flt2(this,'intermediate')">中级</div>
+      <div class="tab" data-c="p" onclick="flt2(this,'advanced')">高阶</div>
+    </div>
+    <div id="plist"></div>
+  </div>
+</div>
+
+<!-- 聊天页 -->
+<div class="P" id="pg-chat">
+  <div class="chat">
+    <div class="msgs" id="msgs">
+      <div class="msg ai">你好，我是小智。选一个项目，告诉我"开始做"，我帮你写代码和接线指导。</div>
+    </div>
+    <div class="inp">
+      <div style="position:relative;display:flex;align-items:center;gap:0">
+      <button class="ib v" id="vbtn">🎤</button>
+      <div id="vlog" style="display:none;position:absolute;left:44px;bottom:-22px;font-size:11px;color:var(--accent);white-space:nowrap;background:var(--surface);padding:1px 8px;border-radius:6px;z-index:50"></div>
+      </div>
+      <input id="tin" placeholder="说点什么…" onkeydown="if(event.key==='Enter')send()">
+      <button class="ib s" onclick="send()">→</button>
+      <button class="ib" id="mutebtn" onclick="toggleMute()" style="font-size:18px;padding:0 10px">🔊</button>
+    </div>
+  </div>
+</div>
+
+<!-- 商店页 -->
+<div class="P" id="pg-store">
+  <div class="hero-s">
+    <h2>解锁更多项目</h2>
+    <p>单个购买，或者开通年卡</p>
+  </div>
+
+  <div class="sec">
+    <div class="sec-h">按项目购买</div>
+    <div class="card price-card">
+      <span class="label hot">入门</span>
+      <h3>入门项目</h3>
+      <div class="pri">¥19.9 <small>/个</small></div>
+      <ul><li>单传感器简单项目</li><li>含完整代码和接线图</li><li>适合零基础新手</li></ul>
+      <button class="btn outline" onclick="modal('buy','购买入门项目\n\n请联系客服购买卡密，\n然后在下方输入卡密即可解锁。')">选择</button>
+    </div>
+    <div class="card price-card">
+      <span class="label best">热门</span>
+      <h3>中级项目</h3>
+      <div class="pri">¥29.9 <small>/个</small></div>
+      <ul><li>多模块联动项目</li><li>含完整代码和接线图</li><li>最受欢迎的复购款</li></ul>
+      <button class="btn outline" onclick="modal('buy','购买中级项目\n\n请联系客服购买卡密，\n然后在下方输入卡密即可解锁。')">选择</button>
+    </div>
+    <div class="card price-card">
+      <span class="label vip">竞赛</span>
+      <h3>高阶项目</h3>
+      <div class="pri">¥49.9 <small>/个</small></div>
+      <ul><li>物联网竞赛级项目</li><li>含WiFi远程和数据存储</li><li>适合科创比赛</li></ul>
+      <button class="btn outline" onclick="modal('buy','购买高阶项目\n\n请联系客服购买卡密，\n然后在下方输入卡密即可解锁。')">选择</button>
+    </div>
+  </div>
+
+  <div class="sec">
+    <div class="sec-h">年度会员</div>
+    <div class="card price-card highlight">
+      <span class="label vip">推荐</span>
+      <h3>年度会员</h3>
+      <div class="pri">¥198 <small>/年</small></div>
+      <ul>
+        <li>全年无限次解锁所有项目</li>
+        <li>持续更新新增项目</li>
+        <li>AI 无限制代码生成和调试</li>
+        <li>全套接线教程和工程导出</li>
+        <li>赠送3个高阶竞赛项目包</li>
+        <li>线上指导答疑</li>
+      </ul>
+      <button class="btn dark" onclick="modal('buy','开通年度会员 ¥198/年\n\n请联系客服购买年卡，\n购买后自动解锁全部项目。')">立即开通</button>
+    </div>
+  </div>
+
+  <div class="sec redeem">
+    <div class="sec-h">已有卡密</div>
+    <div class="card">
+      <div class="redeem-row">
+        <input id="card-in" placeholder="输入卡密">
+        <button onclick="unlock()">验证</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 我的页 -->
+<div class="P" id="pg-me">
+  <div class="card profile">
+    <div class="av">👤</div>
+    <h2>小创客</h2>
+    <div class="sub" id="me-sub">免费体验用户</div>
+  </div>
+
+  <div class="sec">
+    <div class="sec-h">账户信息</div>
+    <div class="card">
+      <div class="kv"><span class="k">会员状态</span><span class="v" id="me-st">未开通</span></div>
+      <div class="kv"><span class="k">已完成项目</span><span class="v" id="me-cnt">0 个</span></div>
+      <div class="kv"><span class="k">已解锁</span><span class="v" id="me-ul">0 个</span></div>
+      <div class="kv"><span class="k">免费项目</span><span class="v g" id="me-fr">剩余 3 次</span></div>
+      <div class="kv"><span class="k">等级</span><span class="v" id="me-lvl" style="color:var(--accent)">学徒</span></div>
+      <div class="kv"><span class="k">经验值</span><span class="v" id="me-xp">0 XP</span></div>
+    </div>
+  </div>
+
+  <div class="sec">
+    <div class="sec-h">帮助</div>
+    <div class="card">
+      <div class="link-row" onclick="modal('help','使用前请先连接Arduino开发板。\n\n支持 Windows / macOS\n需要安装 Arduino CLI 驱动。')"><span class="lk">使用教程</span><span class="la">›</span></div>
+      <div class="link-row" onclick="modal('help','如需帮助请联系客服：\n\n微信：xiaozhi_maker\n工作时间：每天 9:00 - 21:00')"><span class="lk">联系客服</span><span class="la">›</span></div>
+      <div class="link-row" onclick="modal('help','小智造物 v1.0\n\n专为 6-15 岁小朋友设计\nAI 驱动的 Arduino 学习平台')"><span class="lk">关于</span><span class="la">›</span></div>
+    </div>
+  </div>
+
+  <div class="sec">
+    <div class="sec-h">成就徽章</div>
+    <div class="card" id="achievements"></div>
+  </div>
+</div>
+
+<!-- 弹窗 -->
+<div class="overlay" id="ov" onclick="hideM();hidePaywall()"></div>
+<div class="modal" id="mb">
+  <div class="mi" id="m-i">💬</div>
+  <div class="mt" id="m-t"></div>
+  <div class="md" id="m-d"></div>
+  <button onclick="hideM()">确定</button>
+</div>
+
+<!-- 付费墙QR弹窗 -->
+<div class="modal pw-modal" id="pw">
+  <div class="pw-head">
+    <div class="pw-icon">🎫</div>
+    <div class="mt" id="pw-title">解锁更多项目</div>
+    <div class="md" style="margin-bottom:8px">
+      <span id="pw-name"></span>
+      <span id="pw-price" style="font-weight:800;color:var(--orange)"></span>
+    </div>
+  </div>
+  <div class="pw-qr">
+    <img src="/api/qrcode" alt="付款二维码" style="width:200px;height:200px;border-radius:8px">
+    <div style="font-size:13px;color:var(--text2);margin-top:8px">微信/支付宝扫码付款</div>
+  </div>
+  <div class="pw-redeem">
+    <div style="font-size:14px;color:var(--text2);margin-bottom:8px">付款后输入卡密解锁</div>
+    <div class="redeem-row">
+      <input id="pw-card-in" placeholder="输入卡密" style="flex:1;padding:12px 14px;border:1px solid var(--border);border-radius:var(--r);font-size:15px;outline:none">
+      <button onclick="unlock()" style="padding:12px 18px;background:var(--green);color:#FFF;border:none;border-radius:var(--r);font-weight:700;cursor:pointer;font-size:15px">验证解锁</button>
+    </div>
+  </div>
+  <button class="pw-close" onclick="hidePaywall()" style="margin-top:16px;padding:10px 24px;background:var(--bg);color:var(--text2);border:1px solid var(--border);border-radius:var(--r);font-size:14px;font-weight:600;cursor:pointer;width:100%">稍后再说</button>
+</div>
+
+<div class="fw" id="fw"></div>
+
+<script>
+let U={free_used:0,unlocked_projects:[],completed_projects:[],expires:0,xp:0,free_projects:3};
+let Ps=[];
+let curP=null;
+let curL='all';
+let recog=null;
+let vTimer=null;
+let hwInfo=null;
+let ttsMuted=false;
+let curAudio=null;
+function toggleMute(){ttsMuted=!ttsMuted;document.getElementById('mutebtn').textContent=ttsMuted?'🔇':'🔊'}
+function stopTTS(){if(curAudio){curAudio.pause();curAudio=null}}
+function playTTS(t){
+  stopTTS();
+  if(ttsMuted)return;
+  const txt=t.replace(/<[^>]*>/g,'').replace(/```[\s\S]*?```/g,'代码块').replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F1E0}-\u{1F1FF}\u{2600}-\u{27BF}\u{FE00}-\u{FE0F}\u{200D}\u{2702}-\u{27B0}]/gu,'').replace(/\s+/g,' ').trim().substring(0,500);
+  if(!txt)return;
+  fetch('/api/tts',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:txt})})
+    .then(r=>r.json()).then(d=>{if(d.ok){curAudio=new Audio('data:audio/mp3;base64,'+d.data);curAudio.play().catch(()=>{});curAudio.onended=()=>{curAudio=null}}}).catch(()=>{});
+}
+
+async function init(){
+  try{
+    const[a,b]=await Promise.all([fetch('/api/user'),fetch('/api/projects')]);
+    U=await a.json();Ps=await b.json();
+  }catch(e){}
+  stats();initV();renderP();
+  detectHW();
+}
+
+async function detectHW(){
+  try{
+    const r=await fetch('/api/detect');
+    hwInfo=await r.json();
+    if(hwInfo.connected && hwInfo.arduino){
+      const a=hwInfo.arduino;
+      const txt='🔌 检测到Arduino开发板\n端口: '+a.port+'\n类型: '+(a.description||'未知')+(a.vid?' VID:'+a.vid:'');
+      // 显示在聊天中
+      add('tool',txt);
+      // 告诉小智硬件已连接
+      fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({session_id:'default',message:'[系统通知] 学生的Arduino开发板已连接。端口: '+a.port+'，类型: '+(a.description||'未知')+'。现在可以帮他写代码并烧录了。'})
+      }).then(r=>r.json()).then(d=>{if(d.reply)add('ai',d.reply)}).catch(()=>{});
+    } else {
+      add('tool','🔌 未检测到Arduino开发板\n请用USB线连接Arduino到电脑');
+    }
+  }catch(e){
+    add('tool','🔌 硬件检测失败，请检查USB连接');
+  }
+}
+
+function go(n){
+  document.querySelectorAll('.P').forEach(p=>p.classList.remove('on'));
+  document.querySelectorAll('nav a').forEach(a=>a.classList.remove('on'));
+  document.getElementById('pg-'+n).classList.add('on');
+  const m={home:0,proj:1,chat:2,store:3,me:4};
+  document.querySelectorAll('nav a')[m[n]].classList.add('on');
+  // 硬件检测在 init() 中已执行，不重复
+}
+
+function flt(l){curL=l;go('proj');
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on',t.dataset.c==='n'&&l==='all'||l==='free'&&t.dataset.c==='g'||l==='beginner'&&t.dataset.c==='b'||l==='intermediate'&&t.dataset.c==='o'||l==='advanced'&&t.dataset.c==='p'));
+  renderP();
+}
+function flt2(el,l){curL=l;
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
+  el.classList.add('on');renderP();
+}
+
+function renderP(){
+  const c=document.getElementById('plist');if(!c)return;c.innerHTML='';
+  const tag={beginner:['b','入门'],intermediate:['o','中级'],advanced:['p','高阶']};
+  for(const p of Ps){
+    if(curL!=='all'&&p.level!==curL&&!(curL==='free'&&p.price===0)) continue;
+    const d=document.createElement('div');d.className='card pcard';
+    d.onclick=()=>pick(p);
+    const t=tag[p.level]||['',''];
+    d.innerHTML=`
+      <div class="icon">${p.price===0?'○':p.difficulty===1?'◎':p.difficulty===2?'◆':'▲'}</div>
+      <div class="meta">
+        <div class="pn">${p.name}</div>
+        <div class="pd">${p.desc}</div>
+        <div class="pp">${t[0]?`<span class="tag ${t[0]}">${t[1]}</span> &nbsp;`:''}${p.price===0?'免费':'¥'+p.price}</div>
+      </div>
+      <span class="arrow">›</span>`;
+    c.appendChild(d);
+  }
+}
+
+function ok(p){
+  if(p.price===0) return true;
+  if(U.expires>Date.now()/1000) return true;
+  return (U.unlocked_projects||[]).includes(p.id);
+}
+
+function pick(p){
+  curP=p;
+  if(!ok(p)){
+    // 检查是否已用完免费次数 → 弹QR付费墙
+    const fp=U.free_projects||3;
+    if(U.free_used>=fp){
+      showPaywall(p.name,p.price);
+    } else {
+      showPaywall(p.name,p.price);
+    }
+    return;
+  }
+  go('chat');
+  add('ai',`已选择「${p.name}」\n\n需要材料：${p.parts.join('、')}\n\n告诉我"开始做"，我帮你写代码和接线指导。`);
+}
+
+function showPaywall(name,price){
+  document.getElementById('pw-name').textContent=name;
+  document.getElementById('pw-price').textContent=price>0?'¥'+price:'';
+  document.getElementById('ov').style.display='block';
+  document.getElementById('pw').style.display='block';
+}
+function hidePaywall(){
+  document.getElementById('ov').style.display='none';
+  document.getElementById('pw').style.display='none';
+}
+
+function add(t,txt,raw){
+  const d=document.createElement('div');d.className='msg '+t;
+  let html=txt.replace(/\n/g,'<br>');
+  // 检测```arduino代码块，添加烧录按钮
+  if(t==='ai' && /```arduino[\s\S]*?```/.test(txt)){
+    const codeMatch=txt.match(/```arduino\s*\n?([\s\S]*?)```/);
+    if(codeMatch){
+      const code=codeMatch[1].trim();
+      html=html.replace(/```arduino[\s\S]*?```/,'<pre class="code-block"><code>'+code.replace(/</g,'&lt;')+'</code></pre><button class="burn-btn" onclick="burnCode(this)" data-code="'+encodeURIComponent(code)+'">🔥 烧录到Arduino</button>');
+    }
+  }
+  d.innerHTML=html;
+  document.getElementById('msgs').appendChild(d);
+  d.scrollIntoView({behavior:'smooth'});
+  if(t==='ai')playTTS(txt);
+}
+
+let busy=false;
+function send(){
+  if(busy)return;
+  stopTTS();
+  const i=document.getElementById('tin'),t=i.value.trim();if(!t)return;i.value='';
+  add('user',t);
+  busy=true;document.getElementById('tin').disabled=true;
+  const ld=document.createElement('div');ld.className='msg tool';ld.innerHTML='思考中…';
+  document.getElementById('msgs').appendChild(ld);
+  ld.scrollIntoView({behavior:'smooth'});
+  fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({session_id:'default',message:t})})
+    .then(r=>r.json()).then(d=>{ld.remove();add('ai',d.reply);busy=false;document.getElementById('tin').disabled=false})
+    .catch(()=>{ld.remove();add('tool','网络错误');busy=false;document.getElementById('tin').disabled=false});
+}
+
+let burning=false;
+function burnCode(btn){
+  if(burning)return;
+  const code=decodeURIComponent(btn.dataset.code);
+  if(!code)return;
+  burning=true;
+  btn.disabled=true;
+  btn.textContent='⏳ 编译烧录中…';
+  btn.style.background='#E8590C';
+  fetch('/api/burn',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({session_id:'default',code:code,project_id:curP?.id||''})})
+    .then(r=>r.json()).then(d=>{
+      burning=false;
+      if(d.ok){
+        btn.textContent='✅ 烧录成功';
+        btn.style.background='#2B8A3E';
+        btn.style.cursor='default';
+        // 更新用户数据
+        if(d.completed_count!==undefined){
+          const idx=U.completed_projects.indexOf(curP?.id);
+          if(idx===-1&&curP?.id)U.completed_projects.push(curP.id);
+          U.free_used=d.free_used||U.free_used;
+          U.xp=d.xp||U.xp;
+          stats();
+        }
+        // 烧录成功庆祝
+        firework();
+        // 检查是否达到免费限制
+        if(d.reached_free_limit){
+          setTimeout(()=>showPaywall('更多项目',0),1500);
+        }
+      } else {
+        btn.textContent='❌ 烧录失败';
+        btn.style.background='#D6336C';
+        btn.style.cursor='pointer';
+        btn.disabled=false;
+      }
+      // 把烧录结果发给小智，让它告诉学生下一步
+      add('tool',d.ok?'烧录成功，板子已经在运行了！':'烧录失败：'+d.msg);
+      fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({session_id:'default',message:'[系统通知] Arduino烧录'+(d.ok?'成功':'失败')+'。'+d.msg+'。请告诉小朋友结果和下一步该做什么。'})})
+        .then(r=>r.json()).then(d2=>{if(d2.reply)add('ai',d2.reply)})
+        .catch(()=>{});
+    }).catch(()=>{
+      burning=false;
+      btn.textContent='❌ 网络错误';
+      btn.style.background='#D6336C';
+      btn.style.cursor='pointer';
+      btn.disabled=false;
+    });
+}
+
+function initV(){
+  const btn=document.getElementById('vbtn');
+  const S=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!S){
+    btn.title='此浏览器不支持语音输入';btn.style.opacity='0.4';
+    return;
+  }
+  btn.title='按住说话，松手发送';
+  btn.addEventListener('mousedown',e=>{e.preventDefault();startV()});
+  btn.addEventListener('mouseup',e=>{e.preventDefault();stopV()});
+  btn.addEventListener('mouseleave',()=>stopV());
+  btn.addEventListener('touchstart',e=>{e.preventDefault();startV()},{passive:false});
+  btn.addEventListener('touchend',e=>{e.preventDefault();stopV()});
+  btn.addEventListener('touchcancel',()=>stopV());
+}
+function startV(){
+  stopTTS();
+  const btn=document.getElementById('vbtn');
+  if(btn.classList.contains('on'))return;
+  const S=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!S){return}
+  recog=new S();recog.lang='zh-CN';recog.interimResults=false;recog.continuous=false;
+  recog.onresult=e=>{
+    const txt=e.results[e.results.length-1][0].transcript;
+    vLog('识别结果: "'+txt+'"');
+    document.getElementById('tin').value=txt;
+    offV();send();
+  };
+  recog.onstart=()=>{
+    vLog('🎤 麦克风已打开，请说话...');
+  };
+  recog.onerror=e=>{
+    vLog('❌ 语音错误: '+e.error+' ('+e.message+')');
+    offV();
+  };
+  recog.onend=()=>{
+    if(document.getElementById('vbtn').classList.contains('on'))vLog('⏹ 录音结束');
+    offV();
+  };
+  btn.classList.add('on');btn.textContent='⏹';
+  vLog('🔄 正在请求麦克风权限...');
+  try{recog.start()}catch(e){
+    vLog('❌ start()抛出异常: '+e.message);
+    offV();return;
+  }
+  vTimer=setTimeout(()=>{vLog('⏱ 15秒超时');stopV()},15000);
+}
+function stopV(){
+  if(vTimer){clearTimeout(vTimer);vTimer=null}
+  if(recog)try{recog.stop()}catch(e){vLog('stop异常(正常): '+e.message)}
+  offV();
+}
+function offV(){
+  const btn=document.getElementById('vbtn');
+  btn.classList.remove('on');if(btn.textContent==='⏹')btn.textContent='🎤';
+  recog=null;
+}
+function vLog(msg){
+  const el=document.getElementById('vlog');
+  if(!el)return;
+  el.textContent=msg;
+  el.style.display='block';
+  setTimeout(()=>{el.style.display='none'},6000);
+}
+
+function unlock(){
+  const c=document.getElementById('card-in').value.trim();
+  const c2=document.getElementById('pw-card-in')?.value.trim();
+  const code=c||c2||'';if(!code)return;
+  fetch('/api/unlock',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code:code,project_id:curP?.id||''})})
+    .then(r=>r.json()).then(d=>{
+      if(d.ok){
+        hidePaywall();
+        modal('success',d.msg);
+        fetch('/api/user').then(r=>r.json()).then(u=>{U=u;renderP();stats()});
+        // 解锁后自动进入聊天
+        if(curP){
+          setTimeout(()=>{go('chat');add('ai',`已选择「${curP.name}」\n\n需要材料：${curP.parts.join('、')}\n\n告诉我"开始做"，我帮你写代码和接线指导。`)},800);
+        }
+      } else {
+        modal('warn',d.msg);
+      }
+    }).catch(()=>modal('warn','网络错误'));
+}
+
+function stats(){
+  const cp=U.completed_projects||[];
+  const d=cp.length;
+  const h=U.expires>Date.now()/1000?Math.floor((U.expires-Date.now()/1000)/3600):0;
+  const fp=U.free_projects||3;
+  const f=Math.max(0,fp-U.free_used);
+  const xp=U.xp||0;
+  const lvl=getLevel(xp);
+  const e=id=>document.getElementById(id);
+  if(e('s1'))e('s1').textContent=d;
+  if(e('s2'))e('s2').textContent=h;
+  if(e('s3'))e('s3').textContent=f;
+  if(e('s-xp'))e('s-xp').textContent=xp;
+  if(e('s-lvl'))e('s-lvl').textContent=lvl.name;
+  if(e('s-xpbar'))e('s-xpbar').style.width=lvl.pct+'%';
+  if(e('me-cnt'))e('me-cnt').textContent=d+' 个';
+  if(e('me-ul'))e('me-ul').textContent=(U.unlocked_projects||[]).length+' 个';
+  if(e('me-fr'))e('me-fr').textContent='剩余 '+f+' 次';
+  if(e('me-xp'))e('me-xp').textContent=xp+' XP';
+  if(e('me-lvl'))e('me-lvl').textContent=lvl.name;
+  if(h>0){if(e('me-st')){e('me-st').textContent='年卡会员';e('me-st').className='v g'}if(e('me-sub'))e('me-sub').textContent='年卡会员 · '+h+'h'}
+  // 更新成就
+  renderAchievements();
+}
+
+function getLevel(xp){
+  const tiers=[
+    {name:'学徒',min:0,max:100,color:'#8A8F98'},
+    {name:'工匠',min:100,max:500,color:'#3B5BDB'},
+    {name:'大师',min:500,max:1000,color:'#E8590C'},
+    {name:'宗师',min:1000,max:9999,color:'#7048E8'}
+  ];
+  for(const t of tiers){
+    if(xp>=t.min&&xp<t.max){
+      const pct=Math.round((xp-t.min)/(t.max-t.min)*100);
+      return{name:t.name,pct,color:t.color};
+    }
+  }
+  return{name:'宗师',pct:100,color:'#7048E8'};
+}
+
+function renderAchievements(){
+  const c=document.getElementById('achievements');if(!c)return;
+  const cp=U.completed_projects||[];
+  const badges=[
+    {id:'first',icon:'🏅',name:'首次烧录',desc:'成功烧录第一个项目',show:cp.length>=1},
+    {id:'five',icon:'⭐',name:'小有成就',desc:'完成5个项目',show:cp.length>=5},
+    {id:'ten',icon:'🏆',name:'创客达人',desc:'完成10个项目',show:cp.length>=10},
+    {id:'free_done',icon:'🎫',name:'体验完成',desc:'完成全部3个免费项目',show:cp.length>=3}
+  ];
+  c.innerHTML='';
+  for(const b of badges){
+    if(!b.show)continue;
+    const d=document.createElement('div');d.className='badge';
+    d.innerHTML=`<span class="badge-icon">${b.icon}</span><div><div class="badge-name">${b.name}</div><div class="badge-desc">${b.desc}</div></div>`;
+    c.appendChild(d);
+  }
+  if(!c.children.length)c.innerHTML='<div style="color:var(--text3);font-size:14px;text-align:center;padding:12px">完成项目解锁成就徽章</div>';
+}
+
+function modal(t,txt){
+  const ic={buy:'🎫',help:'📖',success:'✓',warn:'!'};
+  const ti={buy:'购买提示',help:'帮助',success:'成功',warn:'提示'};
+  document.getElementById('m-i').textContent=ic[t]||'💬';
+  document.getElementById('m-t').textContent=ti[t]||'提示';
+  document.getElementById('m-d').textContent=txt;
+  document.getElementById('ov').style.display='block';document.getElementById('mb').style.display='block';
+}
+function hideM(){document.getElementById('ov').style.display='none';document.getElementById('mb').style.display='none'}
+
+// 轮询检查解锁状态
+let lastUnlockCheck = 0;
+setInterval(()=>{
+  fetch('/api/check-unlock',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({last_check:lastUnlockCheck})})
+    .then(r=>r.json()).then(d=>{
+      if(d.ok && d.has_new_unlock){
+        lastUnlockCheck = Date.now();
+        fetch('/api/user').then(r=>r.json()).then(u=>{
+          U=u;renderP();stats();
+          modal('success','🎉 新解锁项目！\n已自动刷新项目列表');
+        });
+      }
+    }).catch(()=>{});
+}, 5000);
+
+function fw(){
+  const c=document.getElementById('fw');
+  ['✦','◆','○','△','□','✧'].forEach((e,i)=>{
+    const s=document.createElement('span');s.textContent=e;s.style.left=(15+Math.random()*70)+'%';s.style.top=(15+Math.random()*60)+'%';
+    s.style.animationDelay=(i*.06)+'s';c.appendChild(s);setTimeout(()=>s.remove(),1400);
+  });
+}
+
+function firework(){
+  const c=document.getElementById('fw');
+  const emojis=['🎉','✨','⭐','🌟','💫','🏅','🔥','✅'];
+  for(let i=0;i<20;i++){
+    setTimeout(()=>{
+      const s=document.createElement('span');
+      s.textContent=emojis[Math.floor(Math.random()*emojis.length)];
+      s.style.position='fixed';
+      s.style.left=(20+Math.random()*60)+'%';
+      s.style.top=(30+Math.random()*40)+'%';
+      s.style.fontSize=(20+Math.random()*20)+'px';
+      s.style.pointerEvents='none';
+      s.style.zIndex='999';
+      s.style.transition='all 1s ease-out';
+      s.style.opacity='1';
+      document.body.appendChild(s);
+      requestAnimationFrame(()=>{
+        s.style.transform=`translateY(-${50+Math.random()*100}px) scale(0)`;
+        s.style.opacity='0';
+      });
+      setTimeout(()=>s.remove(),1200);
+    },i*50);
+  }
+}
+
+init();
+</script>
+</body>
+</html>

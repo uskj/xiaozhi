@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>小智管理后台</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:-apple-system,BlinkMacSystemFont,'PingFang SC',sans-serif;background:#f5f7fa;color:#333;padding:20px}
+  .container{max-width:600px;margin:0 auto}
+  h1{text-align:center;margin-bottom:20px;font-size:24px}
+  .card{background:#fff;border-radius:12px;padding:20px;margin-bottom:16px;box-shadow:0 2px 8px rgba(0,0,0,.06)}
+  .card h2{font-size:16px;margin-bottom:12px;color:#555}
+  .form-group{margin-bottom:12px}
+  label{display:block;font-size:14px;margin-bottom:4px;color:#666}
+  select,input{width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:14px}
+  button{padding:12px 24px;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;width:100%}
+  .btn-primary{background:#3B5BDB;color:#fff}
+  .btn-primary:hover{opacity:.9}
+  .btn-success{background:#2B8A3E;color:#fff}
+  .status{padding:10px;border-radius:8px;margin-top:12px;font-size:14px}
+  .status.success{background:#EBFBEE;color:#2B8A3E}
+  .status.error{background:#FFF4F4;color:#D6336C}
+  .project-list{max-height:300px;overflow-y:auto}
+  .project-item{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #f0f0f0}
+  .project-item:last-child{border-bottom:none}
+  .tag{padding:4px 8px;border-radius:4px;font-size:12px;font-weight:700}
+  .tag.free{background:#EBFBEE;color:#2B8A3E}
+  .tag.paid{background:#FFF4E6;color:#E8590C}
+  .tag.unlocked{background:#F3F0FF;color:#7048E8}
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>🔧 小智造物管理后台</h1>
+  
+  <div class="card">
+    <h2>📦 手动解锁项目</h2>
+    <div class="form-group">
+      <label>选择项目</label>
+      <select id="project-select"></select>
+    </div>
+    <div class="form-group">
+      <label>管理员密码</label>
+      <input type="password" id="password" placeholder="输入密码">
+    </div>
+    <button class="btn-primary" onclick="unlockProject()">确认解锁</button>
+    <div id="unlock-status"></div>
+  </div>
+  
+  <div class="card">
+    <h2>👤 当前用户状态</h2>
+    <div id="user-info"></div>
+  </div>
+  
+  <div class="card">
+    <h2>📋 已解锁项目列表</h2>
+    <div class="project-list" id="unlocked-list"></div>
+  </div>
+</div>
+
+<script>
+let U={};
+let Ps=[];
+
+async function init(){
+  try{
+    const[a,b]=await Promise.all([fetch('/api/user'),fetch('/api/projects')]);
+    U=await a.json();Ps=await b.json();
+  }catch(e){return}
+  renderProjectSelect();
+  renderUserInfo();
+  renderUnlockedList();
+}
+
+function renderProjectSelect(){
+  const sel=document.getElementById('project-select');
+  sel.innerHTML='<option value="">-- 请选择项目 --</option>';
+  Ps.forEach(p=>{
+    const opt=document.createElement('option');
+    opt.value=p.id;
+    opt.textContent=`${p.name} (${p.price===0?'免费':'¥'+p.price})`;
+    sel.appendChild(opt);
+  });
+}
+
+async function unlockProject(){
+  const pid=document.getElementById('project-select').value;
+  const pwd=document.getElementById('password').value;
+  const status=document.getElementById('unlock-status');
+  
+  if(!pid){status.className='status error';status.textContent='请选择一个项目';return}
+  if(!pwd){status.className='status error';status.textContent='请输入密码';return}
+  
+  try{
+    const r=await fetch('/api/admin/unlock',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({project_id:pid,password:pwd})
+    });
+    const d=await r.json();
+    if(d.ok){
+      status.className='status success';
+      status.textContent=d.msg;
+      renderUserInfo();
+      renderUnlockedList();
+      document.getElementById('password').value='';
+    } else {
+      status.className='status error';
+      status.textContent=d.msg;
+    }
+  }catch(e){
+    status.className='status error';
+    status.textContent='网络错误';
+  }
+}
+
+function renderUserInfo(){
+  const div=document.getElementById('user-info');
+  const unlocked=(U.unlocked_projects||[]).length;
+  const completed=(U.completed_projects||[]).length;
+  const xp=U.xp||0;
+  const freeUsed=U.free_used||0;
+  const freeLimit=U.free_projects||3;
+  
+  div.innerHTML=`
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div><span style="color:#888;font-size:12px">已完成项目</span><br><strong>${completed}</strong></div>
+      <div><span style="color:#888;font-size:12px">已解锁项目</span><br><strong>${unlocked}</strong></div>
+      <div><span style="color:#888;font-size:12px">经验值</span><br><strong>${xp} XP</strong></div>
+      <div><span style="color:#888;font-size:12px">免费次数</span><br><strong>${freeUsed}/${freeLimit}</strong></div>
+    </div>
+  `;
+}
+
+function renderUnlockedList(){
+  const div=document.getElementById('unlocked-list');
+  if(!U.unlocked_projects||U.unlocked_projects.length===0){
+    div.innerHTML='<div style="text-align:center;color:#999;padding:20px">暂无解锁项目</div>';
+    return;
+  }
+  
+  div.innerHTML='';
+  U.unlocked_projects.forEach(pid=>{
+    const p=Ps.find(x=>x.id===pid);
+    if(!p)return;
+    const item=document.createElement('div');
+    item.className='project-item';
+    item.innerHTML=`
+      <div>
+        <div style="font-weight:700">${p.name}</div>
+        <div style="font-size:12px;color:#888">${p.desc}</div>
+      </div>
+      <span class="tag unlocked">已解锁</span>
+    `;
+    div.appendChild(item);
+  });
+}
+
+init();
+</script>
+</body>
+</html>

@@ -1,0 +1,6 @@
+$Target = Join-Path $env:LOCALAPPDATA "小智造物"
+Write-Host "Target: $Target"
+$pyDir = Join-Path $env:LOCALAPPDATA "Programs\Python\Python310"
+$pyScripts = Join-Path $env:LOCALAPPDATA "Programs\Python\Python310\Scripts"
+$env:PATH = "$pyDir;$pyScripts;$env:PATH"
+Write-Host "PATH set: $env:PATH"

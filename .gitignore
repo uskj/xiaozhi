@@ -1,0 +1,22 @@
+# Secrets
+config.json
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Data
+data/
+
+# Build artifacts
+*.7z
+_installer.7z
+
+# OS
+Thumbs.db
+.DS_Store
+
+# IDE
+.vscode/
+.idea/

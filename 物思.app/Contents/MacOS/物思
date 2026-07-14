@@ -1,0 +1,4 @@
+#!/bin/bash
+cd "$(dirname "$0")/../Resources"
+pip3 install edge_tts requests pyserial -q 2>/dev/null
+python3 main.py

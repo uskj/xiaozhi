@@ -6,7 +6,7 @@ exit /b 0
 : #>
 [Console]::OutputEncoding = [Text.Encoding]::UTF8
 Write-Host "step1"
-$Target = Join-Path $env:LOCALAPPDATA "小智造物"
+$Target = Join-Path $env:LOCALAPPDATA "物思"
 Write-Host "step2: $Target"
 $pyDir = Join-Path $env:LOCALAPPDATA "Programs\Python\Python310"
 $pyScripts = Join-Path $env:LOCALAPPDATA "Programs\Python\Python310\Scripts"

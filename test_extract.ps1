@@ -1,12 +1,12 @@
 [Console]::OutputEncoding = [Text.Encoding]::UTF8
 Write-Host ""
 Write-Host "  ============================================" -ForegroundColor Cyan
-Write-Host "     小智造物 - Arduino AI 学习平台" -ForegroundColor Cyan
+Write-Host "     物思 - Arduino AI 学习平台" -ForegroundColor Cyan
 Write-Host "     一键安装程序" -ForegroundColor Cyan
 Write-Host "  ============================================" -ForegroundColor Cyan
 Write-Host ""
 
-$Target = Join-Path $env:LOCALAPPDATA "小智造物"
+$Target = Join-Path $env:LOCALAPPDATA "物思"
 Write-Host "  安装目录: $Target"
 
 Write-Host ""
@@ -113,12 +113,12 @@ if (-not $hasCore) {
 Write-Host "    Arduino 编译环境已就绪" -ForegroundColor Green
 
 Write-Host ""
-$lnk = Join-Path $env:USERPROFILE "Desktop\小智造物.lnk"
+$lnk = Join-Path $env:USERPROFILE "Desktop\物思.lnk"
 $sh = New-Object -COM WScript.Shell
 $sc = $sh.CreateShortcut($lnk)
 $sc.TargetPath = Join-Path $Target "start.bat"
 $sc.WorkingDirectory = $Target
-$sc.Description = "小智造物 - Arduino AI 学习平台"
+$sc.Description = "物思 - Arduino AI 学习平台"
 $sc.Save()
 Write-Host "  桌面快捷方式已创建" -ForegroundColor Green
 
@@ -129,7 +129,7 @@ Write-Host "  ============================================" -ForegroundColor Cya
 Write-Host ""
 Write-Host "  使用方法："
 Write-Host "    1. 用USB线连接Arduino到电脑"
-Write-Host "    2. 双击桌面 小智造物 快捷方式"
+Write-Host "    2. 双击桌面 物思 快捷方式"
 Write-Host "    3. 开始和小智聊天吧！"
 Write-Host ""
 

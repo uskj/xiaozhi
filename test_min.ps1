@@ -1,4 +1,4 @@
-$Target = Join-Path $env:LOCALAPPDATA "小智造物"
+$Target = Join-Path $env:LOCALAPPDATA "物思"
 Write-Host "Target: $Target"
 $pyDir = Join-Path $env:LOCALAPPDATA "Programs\Python\Python310"
 $pyScripts = Join-Path $env:LOCALAPPDATA "Programs\Python\Python310\Scripts"

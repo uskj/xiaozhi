@@ -197,6 +197,19 @@ ARDUINO_KEYWORDS = ["arduino", "nano", "uno", "mega", "leonardo", "micro", "due"
 ACP_URL = "http://127.0.0.1:18791"
 ACP_AUTH = "Basic " + base64.b64encode(b"opencode:greenleaf2026").decode()
 
+def acp_available():
+    """检测ACP是否可用（3秒超时）"""
+    try:
+        req = urllib.request.Request(ACP_URL + "/session", method="GET",
+                                     headers={"Authorization": ACP_AUTH})
+        with urllib.request.urlopen(req, timeout=3) as r:
+            return True
+    except:
+        return False
+
+ACP_OK = acp_available()
+_log_ai(f"[ACP] available={ACP_OK}")
+
 def acp_post(path, body=None):
     req = urllib.request.Request(
         ACP_URL + path,
@@ -204,7 +217,7 @@ def acp_post(path, body=None):
         headers={"Authorization": ACP_AUTH, "Content-Type": "application/json"},
         method="POST"
     )
-    with urllib.request.urlopen(req, timeout=30) as r:
+    with urllib.request.urlopen(req, timeout=10) as r:
         return json.loads(r.read().decode("utf-8"))
 
 def call_ai(sid, user_msg):
@@ -214,47 +227,50 @@ def call_ai(sid, user_msg):
     _log_ai(f"[IntentGate] '{user_msg[:30]}' → {intent}")
 
     history = get_history(sid)
-    ACP_SESSIONS = getattr(call_ai, "acp_sessions", {})
-    call_ai.acp_sessions = ACP_SESSIONS
 
-    ses_id = ACP_SESSIONS.get(sid)
-    if not ses_id:
-        try:
-            ses = acp_post("/session", {"title": f"xiaozhi_{sid}"})
-            ses_id = ses.get("id")
-            if ses_id:
-                ACP_SESSIONS[sid] = ses_id
-                try:
-                    acp_post(f"/session/{ses_id}/message", {"parts": [{"type": "text", "text": XIAOZHI_SYSTEM}]})
-                except Exception as e:
-                    _log_ai(f"[ACP] init msg failed (non-fatal): {e}")
-            else:
-                _log_ai(f"[ACP] create session returned no id: {ses}")
-        except Exception as e:
-            _log_ai(f"[ACP] create session exception: {type(e).__name__}: {e}")
-            ses_id = None
+    # ── ACP路径（仅本机有OpenCode时使用）──
+    if ACP_OK:
+        ACP_SESSIONS = getattr(call_ai, "acp_sessions", {})
+        call_ai.acp_sessions = ACP_SESSIONS
 
-    if ses_id:
-        # 用意图前缀包装消息，让ACP知道切换角色
-        wrapped_msg = f"[你是{intent}专家] {user_msg}"
-        history.append({"role": "user", "content": wrapped_msg})
-        ctx = "\n".join(
-            f"{'小朋友' if m['role']=='user' else '小智'}：{m['content']}"
-            for m in history
-        )
-        prompt = f"{ctx}\n\n小智的回答："
-        try:
-            _log_ai(f"[ACP] sending msg (len={len(prompt)})")
-            resp = acp_post(f"/session/{ses_id}/message", {"parts": [{"type": "text", "text": prompt}]})
-            for part in resp.get("parts", []):
-                if part.get("type") == "text" and part.get("text", "").strip():
-                    reply = strip_md(part["text"].strip())
-                    history.append({"role": "assistant", "content": reply})
-                    _log_ai(f"[ACP] reply OK (len={len(reply)})")
-                    return reply
-        except Exception as e:
-            _log_ai(f"[ACP Error] {type(e).__name__}: {e}")
-            pass
+        ses_id = ACP_SESSIONS.get(sid)
+        if not ses_id:
+            try:
+                ses = acp_post("/session", {"title": f"xiaozhi_{sid}"})
+                ses_id = ses.get("id")
+                if ses_id:
+                    ACP_SESSIONS[sid] = ses_id
+                    try:
+                        acp_post(f"/session/{ses_id}/message", {"parts": [{"type": "text", "text": XIAOZHI_SYSTEM}]})
+                    except Exception as e:
+                        _log_ai(f"[ACP] init msg failed (non-fatal): {e}")
+                else:
+                    _log_ai(f"[ACP] create session returned no id: {ses}")
+            except Exception as e:
+                _log_ai(f"[ACP] create session exception: {type(e).__name__}: {e}")
+                ses_id = None
+
+        if ses_id:
+            wrapped_msg = f"[你是{intent}专家] {user_msg}"
+            history.append({"role": "user", "content": wrapped_msg})
+            ctx = "\n".join(
+                f"{'小朋友' if m['role']=='user' else '小智'}：{m['content']}"
+                for m in history
+            )
+            prompt = f"{ctx}\n\n小智的回答："
+            try:
+                _log_ai(f"[ACP] sending msg (len={len(prompt)})")
+                resp = acp_post(f"/session/{ses_id}/message", {"parts": [{"type": "text", "text": prompt}]})
+                for part in resp.get("parts", []):
+                    if part.get("type") == "text" and part.get("text", "").strip():
+                        reply = strip_md(part["text"].strip())
+                        history.append({"role": "assistant", "content": reply})
+                        _log_ai(f"[ACP] reply OK (len={len(reply)})")
+                        return reply
+            except Exception as e:
+                _log_ai(f"[ACP Error] {type(e).__name__}: {e}")
+    else:
+        _log_ai(f"[ACP] skipped (not available on this machine)")
 
     # ── Agnes/DeepSeek fallback：直接注入意图提示词 ──
     headers = {"Content-Type": "application/json", "Authorization": f"Bearer {AI_KEY}"}
@@ -268,7 +284,7 @@ def call_ai(sid, user_msg):
             ctx.check_hostname = False
             ctx.verify_mode = ssl.CERT_NONE
             req = urllib.request.Request(AI_URL, data=json.dumps(body).encode("utf-8"), headers=headers, method="POST")
-            with urllib.request.urlopen(req, context=ctx, timeout=60) as resp:
+            with urllib.request.urlopen(req, context=ctx, timeout=15) as resp:
                 data = json.loads(resp.read().decode("utf-8"))
             reply = data.get("choices", [{}])[0].get("message", {}).get("content", "")
             if reply:

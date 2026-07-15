@@ -717,7 +717,12 @@ function initV(){
   const btn=document.getElementById('vbtn');
   const S=window.SpeechRecognition||window.webkitSpeechRecognition;
   if(!S){
-    btn.title='此浏览器不支持语音输入';btn.style.opacity='0.4';
+    // 语音不支持：显示明确提示
+    btn.title='此浏览器不支持语音输入，请使用Chrome或Edge';
+    btn.style.opacity='0.4';
+    btn.style.cursor='not-allowed';
+    btn.onclick=()=>alert('语音输入需要使用 Chrome 或 Edge 浏览器打开。\n\n当前浏览器不支持 Web Speech API。');
+    vLog('⚠️ 语音不支持，请用Chrome/Edge打开');
     return;
   }
   btn.title='按住说话，松手发送';
@@ -750,7 +755,17 @@ function startV(){
     vLog('🎤 识别中… ('+allText.length+'字)');
   };
   recog.onstart=()=>{vLog('🎤 麦克风已打开，说完松手发送')};
-  recog.onerror=e=>{vLog('❌ 语音错误: '+e.error);offV()};
+  recog.onerror=e=>{
+    vLog('❌ 语音错误: '+e.error);
+    if(e.error==='not-allowed'||e.error==='service-not-allowed'){
+      vLog('⚠️ 麦克风权限被拒绝，请在浏览器设置中允许麦克风');
+    }else if(e.error==='network'){
+      vLog('⚠️ 语音识别服务不可用，请检查网络');
+    }else if(e.error==='no-speech'){
+      vLog('⚠️ 没有检测到说话，请重试');
+    }
+    offV()
+  };
   recog.onend=()=>{offV()};
   btn.classList.add('on');btn.textContent='⏹';
   vLog('🔄 正在请求麦克风权限...');

@@ -512,11 +512,13 @@ let U={free_used:0,unlocked_projects:[],completed_projects:[],expires:0,xp:0,fre
 let Ps=[];
 let curP=null;
 let curL='all';
-let recog=null;
+let recog=null,vStopping=false;
 let vTimer=null;
 let hwInfo=null;
 let ttsMuted=false;
 let curAudio=null;
+let curSid='s'+Date.now();
+let curIntent='general';
 function toggleMute(){ttsMuted=!ttsMuted;document.getElementById('mutebtn').textContent=ttsMuted?'🔇':'🔊'}
 function stopTTS(){if(curAudio){curAudio.pause();curAudio=null}}
 function playTTS(t){
@@ -524,7 +526,7 @@ function playTTS(t){
   if(ttsMuted)return;
   const txt=t.replace(/<[^>]*>/g,'').replace(/```[\s\S]*?```/g,'代码块').replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F1E0}-\u{1F1FF}\u{2600}-\u{27BF}\u{FE00}-\u{FE0F}\u{200D}\u{2702}-\u{27B0}]/gu,'').replace(/\s+/g,' ').trim().substring(0,500);
   if(!txt)return;
-  fetch('/api/tts',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:txt})})
+  fetch('/api/tts',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:txt,session_id:curSid})})
     .then(r=>r.json()).then(d=>{if(d.ok){curAudio=new Audio('data:audio/mp3;base64,'+d.data);curAudio.play().catch(()=>{});curAudio.onended=()=>{curAudio=null}}}).catch(()=>{});
 }
 
@@ -548,7 +550,7 @@ async function detectHW(){
       add('tool',txt);
       // 告诉小智硬件已连接
       fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({session_id:'default',message:'[系统通知] 学生的Arduino开发板已连接。端口: '+a.port+'，类型: '+(a.description||'未知')+'。现在可以帮他写代码并烧录了。'})
+        body:JSON.stringify({session_id:curSid,message:'[系统通知] 学生的Arduino开发板已连接。端口: '+a.port+'，类型: '+(a.description||'未知')+'。现在可以帮他写代码并烧录了。'})
       }).then(r=>r.json()).then(d=>{if(d.reply)add('ai',d.reply)}).catch(()=>{});
     } else {
       add('tool','🔌 未检测到Arduino开发板\n请用USB线连接Arduino到电脑');
@@ -656,8 +658,8 @@ function send(){
   const ld=document.createElement('div');ld.className='msg tool';ld.innerHTML='思考中…';
   document.getElementById('msgs').appendChild(ld);
   ld.scrollIntoView({behavior:'smooth'});
-  fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({session_id:'default',message:t})})
-    .then(r=>r.json()).then(d=>{ld.remove();add('ai',d.reply);busy=false;document.getElementById('tin').disabled=false})
+  fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({session_id:curSid,message:t})})
+    .then(r=>r.json()).then(d=>{ld.remove();curIntent=d.intent||'general';add('ai',d.reply);busy=false;document.getElementById('tin').disabled=false})
     .catch(()=>{ld.remove();add('tool','网络错误');busy=false;document.getElementById('tin').disabled=false});
 }
 
@@ -699,7 +701,7 @@ function burnCode(btn){
       }
       // 把烧录结果发给小智，让它告诉学生下一步
       add('tool',d.ok?'烧录成功，板子已经在运行了！':'烧录失败：'+d.msg);
-      fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({session_id:'default',message:'[系统通知] Arduino烧录'+(d.ok?'成功':'失败')+'。'+d.msg+'。请告诉小朋友结果和下一步该做什么。'})})
+      fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({session_id:curSid,message:'[系统通知] Arduino烧录'+(d.ok?'成功':'失败')+'。'+d.msg+'。请告诉小朋友结果和下一步该做什么。'})})
         .then(r=>r.json()).then(d2=>{if(d2.reply)add('ai',d2.reply)})
         .catch(()=>{});
     }).catch(()=>{
@@ -719,12 +721,15 @@ function initV(){
     return;
   }
   btn.title='按住说话，松手发送';
-  btn.addEventListener('mousedown',e=>{e.preventDefault();startV()});
-  btn.addEventListener('mouseup',e=>{e.preventDefault();stopV()});
-  btn.addEventListener('mouseleave',()=>stopV());
-  btn.addEventListener('touchstart',e=>{e.preventDefault();startV()},{passive:false});
-  btn.addEventListener('touchend',e=>{e.preventDefault();stopV()});
-  btn.addEventListener('touchcancel',()=>stopV());
+  let releasing=false;
+  function onDown(e){e.preventDefault();releasing=false;startV()}
+  function onUp(e){e.preventDefault();if(!releasing){releasing=true;setTimeout(()=>stopV(),1000)}}
+  btn.addEventListener('mousedown',onDown);
+  btn.addEventListener('mouseup',onUp);
+  btn.addEventListener('mouseleave',()=>{if(!releasing){releasing=true;setTimeout(()=>stopV(),500)}});
+  btn.addEventListener('touchstart',e=>{e.preventDefault();onDown(e)},{passive:false});
+  btn.addEventListener('touchend',e=>{e.preventDefault();onUp(e)});
+  btn.addEventListener('touchcancel',()=>{if(!releasing){releasing=true;setTimeout(()=>stopV(),500)}});
 }
 function startV(){
   stopTTS();
@@ -733,8 +738,10 @@ function startV(){
   const S=window.SpeechRecognition||window.webkitSpeechRecognition;
   if(!S){return}
   recog=new S();recog.lang='zh-CN';recog.interimResults=true;recog.continuous=true;
+  vStopping=false;
   let allText='';
   recog.onresult=e=>{
+    if(vStopping)return;
     allText='';
     for(let i=0;i<e.results.length;i++){
       allText+=e.results[i][0].transcript;
@@ -742,28 +749,18 @@ function startV(){
     document.getElementById('tin').value=allText;
     vLog('🎤 识别中… ('+allText.length+'字)');
   };
-  recog.onstart=()=>{
-    vLog('🎤 麦克风已打开，请说话...');
-  };
-  recog.onerror=e=>{
-    vLog('❌ 语音错误: '+e.error+' ('+e.message+')');
-    offV();
-  };
-  recog.onend=()=>{
-    if(document.getElementById('vbtn').classList.contains('on'))vLog('⏹ 录音结束');
-    offV();
-  };
+  recog.onstart=()=>{vLog('🎤 麦克风已打开，说完松手发送')};
+  recog.onerror=e=>{vLog('❌ 语音错误: '+e.error);offV()};
+  recog.onend=()=>{offV()};
   btn.classList.add('on');btn.textContent='⏹';
   vLog('🔄 正在请求麦克风权限...');
-  try{recog.start()}catch(e){
-    vLog('❌ start()抛出异常: '+e.message);
-    offV();return;
-  }
+  try{recog.start()}catch(e){vLog('❌ start异常: '+e.message);offV()}
 }
 function stopV(){
   if(vTimer){clearTimeout(vTimer);vTimer=null}
-  if(recog)try{recog.stop()}catch(e){vLog('stop异常(正常): '+e.message)}
+  vStopping=true;
   const txt=document.getElementById('tin').value.trim();
+  if(recog){try{recog.stop()}catch(e){}}
   offV();
   if(txt)send();
 }

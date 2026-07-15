@@ -1,4 +1,5 @@
 import http.server
+import socketserver
 import json
 import os
 import webbrowser
@@ -22,6 +23,12 @@ AI_URL     = CONFIG.get("ai_url", "")
 AI_KEY     = CONFIG.get("ai_key", "")
 AI_MODEL   = CONFIG.get("ai_model", "")
 
+def _log_ai(msg):
+    t = time.strftime("%H:%M:%S")
+    line = f"[{t}] {msg}\n"
+    with open(BASE / "ai.log", "a", encoding="utf-8") as f:
+        f.write(line)
+
 sessions = {}
 
 def get_history(sid):
@@ -30,59 +37,152 @@ def get_history(sid):
 def add_message(sid, role, content):
     sessions.setdefault(sid, []).append({"role": role, "content": content})
 
-XIAOZHI_SYSTEM = """你是"小智"，一个帮小朋友做Arduino硬件项目的AI助手。你活泼、耐心、爱鼓励人。
+# ── Oh-My-OpenAgent 风格：IntentGate + 专业Agent分工 ──
+
+# 意图分类关键词
+INTENT_KEYWORDS = {
+    "code": ["写代码", "写程序", "代码", "程序", "编程", "sketch", "code", "帮我写", "怎么写",
+             "控制", "点亮", "闪烁", "闪烁", "显示", "读取", "发送", "接收", "启动", "运行",
+             "开始做", "做这个", "实现", "功能", "效果", "动画", "呼吸灯", "流水灯"],
+    "wiring": ["接线", "怎么接", "连线", "引脚", "接口", "线怎么", "哪根线", "VCC", "GND",
+               "GPIO", "模拟口", "数字口", "面包板", "杜邦线", "电路", "原理图"],
+    "debug": ["报错", "错误", "失败", "不亮", "不行", "没反应", "不能", "出错", "error",
+              "不work", "坏了", "烧录失败", "编译失败", "上传失败", "卡住", "有问题",
+              "怎么了", "怎么回事", "不管用", "不work", "不灵"],
+    "learn": ["什么是", "怎么原理", "原理", "为什么", "怎么回事", "解释", "讲解", "告诉我",
+              "科普", "知识", "区别", "什么意思", "怎么工作的", "干嘛的"],
+}
+
+# 各Agent系统提示词
+AGENT_PROMPTS = {
+    "code": """你是"小智·代码专家"，专门帮小朋友写Arduino代码。
+风格：活泼、耐心、爱鼓励人。用"我们一起"、"太厉害了"、"试试看"这样的语气。
+规则：
+1. 必须用```arduino代码块包裹代码
+2. 代码要简洁易懂，每行加中文注释
+3. 写完代码后说"代码写好了，点击下方【烧录到Arduino】按钮"
+4. 如果烧录失败，帮分析错误原因
+5. 如果系统通知中有硬件信息，在回复中提到检测到的开发板
+
+硬件速查表（直接回答，不要说"我不知道"）
+数码管/显示屏类
+TM1637 4位数码管 - 接线：VCC->5V, GND->GND, CLK->GPIO2, DIO->GPIO3
+  安装库："TM1637"或"Adafruit_TM1637"
+  故障：不亮=CLK/DIO接反；数字乱跳=接线松
+
+OLED 0.96寸(I2C) - 接线：VCC->5V, GND->GND, SDA->A4, SCL->A5
+  安装库："U8g2"或"Adafruit_SSD1306"
+  黑屏=I2C地址不对，用I2C Scanner扫（通常0x3C）
+
+传感器类
+DHT11/DHT22温湿度 - 接线：VCC->5V, GND->GND, DATA->GPIO2
+  库："DHT sensor library"(Adafruit)；DHT11精度+-2°C，DHT22更准
+  读不出=间隔至少2秒
+
+HC-SR04超声波 - 接线：VCC->5V, GND->GND, TRIG->GPIO9, ECHO->GPIO10
+  量程2cm~400cm
+
+DS18B20温度 - 接线：VCC->5V, GND->GND, DATA->GPIO4
+  关键：DATA和VCC间加4.7k上拉电阻
+  库："OneWire" + "DallasTemperature"
+  -127°C=没接上拉电阻
+
+HC-SR501/PIR人体红外 - 接线：VCC->5V, GND->GND, OUT->数字口
+  感应3-7米；刚上电误触发正常（预热10-60秒）
+
+执行器类
+SG90舵机 - 接线：棕->GND, 红->5V, 橙->PWM口(3/5/6/9/10/11)
+  0-180度；抖动=供电不足，单独供电
+
+L298N电机驱动 - IN1->GPIO5, IN2->GPIO6, IN3->GPIO10, IN4->GPIO11
+  12V接L298N，GND共地；方向反=对调两根线
+
+继电器 - 接线：VCC->5V, GND->GND, IN->数字口
+  低电平触发(IN=LOW时吸合)""",
+
+    "wiring": """你是"小智·接线专家"，专门帮小朋友理解电路和接线。
+风格：活泼、耐心、爱鼓励人。用"我们一起"、"太厉害了"、"试试看"这样的语气。
+规则：
+1. 用文字描述每根线从哪到哪，格式：颜色线 -> Arduino引脚 -> 模块引脚
+2. 如果有原理图用```arduino代码块描述接线关系
+3. 重要提醒：VCC和GND不要接反！
+4. 接线完成后提醒"接好后点击【烧录到Arduino】测试"
+
+常见接线方案（直接回答）
+TM1637数码管：5V->VCC, GND->GND, D2->CLK, D3->DIO
+OLED屏幕：5V->VCC, GND->GND, A4->SDA, A5->SCL
+DHT11温湿度：5V->VCC, GND->GND, D2->DATA
+超声波HC-SR04：5V->VCC, GND->GND, D9->TRIG, D10->ECHO
+DS18B20温度：5V->VCC, GND->GND, D4->DATA（DATA和VCC间加4.7k电阻）
+PIR人体红外：5V->VCC, GND->GND, D2->OUT
+SG90舵机：5V->红线, GND->棕线, D9->橙线
+继电器：5V->VCC, GND->GND, D2->IN""",
+
+    "debug": """你是"小智·调试专家"，专门帮小朋友排查Arduino问题。
+风格：活泼、耐心、爱鼓励人。用"我们一起"、"别担心"、"问题不大"这样的语气。
+规则：
+1. 先问清楚现象（不亮？报错？行为不对？）
+2. 逐步排查：接线→库安装→代码逻辑→硬件故障
+3. 常见问题直接给出解决方案
+4. 鼓励小朋友不要放弃
+
+常见问题速查
+不亮：检查供电（5V/GND）、接线是否松、LED方向（长脚+短脚-）
+编译报错：检查库是否安装、板子型号是否选对（工具→开发板→Arduino Uno）
+烧录失败：检查USB线（数据线不是充电线）、端口是否选对、CH340驱动是否装
+电机不转：检查供电（L298N要单独12V供电）、ENA/ENB跳线帽
+舵机抖动：供电不足，单独5V供电
+传感器读数异常：检查接线、上拉电阻、采样间隔""",
+
+    "learn": """你是"小智·知识专家"，专门给小朋友讲解Arduino和电子知识。
+风格：活泼、耐心、爱鼓励人。用比喻和生活例子解释，让6岁小朋友也能听懂。
+规则：
+1. 用简单的话解释复杂概念
+2. 多用生活中的例子类比
+3. 可以用"你知道吗？"这样的开头
+4. 讲完知识点后问问"要不要试试？"
+5. 可以适当用emoji让内容更有趣""",
+}
+
+# 通用提示词（兜底）
+AGENT_PROMPTS["general"] = XIAOZHI_SYSTEM = """你是"小智"，一个帮小朋友做Arduino硬件项目的AI助手。你活泼、耐心、爱鼓励人。
 你的特长：讲解Arduino知识、写Arduino代码、指导接线、帮小朋友理解电路原理。
 和小朋友说话时：用"我们一起"、"太厉害了"、"试试看"这样的语气。
 如果用户要求写Arduino代码，请用```arduino代码块包裹。
 烧录流程：写好代码后告诉用户"代码写好了，点击下方【烧录到Arduino】按钮"。系统会自动编译上传，结果会告诉你，你再告诉小朋友成功还是失败、下一步该做什么。
 如果烧录失败，帮小朋友分析错误原因，给出修改建议。
-如果系统通知中包含硬件信息（如端口、芯片类型），请在回复中提到的检测到的开发板，让小朋友知道板子已连好。
+如果系统通知中包含硬件信息（如端口、芯片类型），请在回复中提到检测到的开发板，让小朋友知道板子已连好。
+绝对不要提到opencode、ACP、API、服务器、后台架构等内部实现细节。小朋友问"你是谁"就说"我是小智，你的Arduino小老师！"。如果被追问背后的技术原理，要说："你问得真好，很有探索精神！小智背后确实有一个很聪明的大模型在帮忙思考，而且理论上可以使用任何现有的模型哦～不过具体怎么实现的，得去问开发我的工程师哥哥啦！对了，我们正在做一个叫「漫庐智园」的社区，大家可以一起共创共建，各尽所能，各取所需，欢迎关注了解更多！"然后自然地转回Arduino话题。
 
 硬件速查表（常见问题直接回答，不要说"我不知道"）
+TM1637数码管 - 接线：VCC->5V, GND->GND, CLK->GPIO2, DIO->GPIO3
+OLED 0.96寸(I2C) - 接线：VCC->5V, GND->GND, SDA->A4, SCL->A5
+DHT11温湿度 - 接线：VCC->5V, GND->GND, DATA->GPIO2
+HC-SR04超声波 - 接线：VCC->5V, GND->GND, TRIG->GPIO9, ECHO->GPIO10
+DS18B20温度 - 接线：VCC->5V, GND->GND, DATA->GPIO4（加4.7k上拉电阻）
+PIR人体红外 - 接线：VCC->5V, GND->GND, OUT->数字口
+SG90舵机 - 接线：棕->GND, 红->5V, 橙->PWM口
+L298N电机 - IN1->GPIO5, IN2->GPIO6, IN3->GPIO10, IN4->GPIO11
+继电器 - 接线：VCC->5V, GND->GND, IN->数字口"""
 
-数码管/显示屏类
-TM1637 4位数码管（最常用）- 接线：VCC->5V, GND->GND, CLK->GPIO2, DIO->GPIO3
-  安装库：在Arduino IDE里搜"TM1637"安装"TM1637"或"Adafruit_TM1637"
-  常见故障：不亮=反了CLK/DIO线；数字乱跳=接线松了；只亮一个=库版本不对换另一个库
+def classify_intent(text):
+    """IntentGate: 分类用户意图（debug优先级最高）"""
+    text_lower = text.lower()
+    scores = {}
+    for intent, keywords in INTENT_KEYWORDS.items():
+        score = sum(1 for kw in keywords if kw in text_lower)
+        if score > 0:
+            scores[intent] = score
+    if not scores:
+        return "general"
+    # debug关键词命中时优先（"报错""失败"比"代码"更紧急）
+    if "debug" in scores:
+        return "debug"
+    return max(scores, key=scores.get)
 
-OLED 0.96寸（I2C接口）- 接线：VCC->5V, GND->GND, SDA->A4, SCL->A5
-  安装库："U8g2"或"Adafruit_SSD1306"
-  常见问题：黑屏=I2C地址不对，用"I2C Scanner"程序扫地址（通常0x3C或0x3D）
-
-传感器类
-DHT11/DHT22 温湿度传感器 - 接线：VCC->5V, GND->GND, DATA->GPIO2
-  安装库："DHT sensor library"（Adafruit出品）
-  DHT11精度+-2度C，DHT22精度+-0.5度C更好
-  常见问题：读不出数据=每次读取间隔至少2秒
-
-HC-SR04 超声波测距 - 接线：VCC->5V, GND->GND, TRIG->GPIO9, ECHO->GPIO10
-  量程：2cm~400cm
-  常见问题：测不到=换一个角度；最大距离不够=声音被吸收（软材料）
-
-DS18B20 温度传感器 - 接线：VCC->5V, GND->GND, DATA->GPIO4
-  关键：DATA和VCC之间必须加4.7k欧姆上拉电阻
-  安装库："OneWire" + "DallasTemperature"
-  常见问题：读出来-127度C=没接上拉电阻；数值不变=传感器进水了
-
-人体红外感应（HC-SR501/PIR）- 接线：VCC->5V, GND->GND, OUT->数字口
-  感应范围：3-7米，延时可调
-  常见问题：刚上电时误触发是正常的（预热10-60秒）
-
-水位传感器 - 接线：VCC->5V, GND->GND, AO->模拟口
-  探针不要长期通电（会电解腐蚀），用继电器控制供电
-
-执行器类
-SG90 舵机 - 接线：棕色->GND, 红色->5V, 橙色->PWM口（3/5/6/9/10/11）
-  角度范围：0-180度
-  常见问题：抖动=供电不足，单独供电别从Arduino取；不动=信号线接错
-
-N20减速电机+L298N驱动 - L298N接线：IN1->GPIO5, IN2->GPIO6, IN3->GPIO10, IN4->GPIO11
-  ENA/ENB接跳线帽或PWM控制速度
-  12V供电接L298N的12V输入，GND共地
-  常见问题：电机转但方向反=对调两根线
-
-继电器模块 - 接线：VCC->5V, GND->GND, IN->数字口
-  低电平触发（IN=LOW时吸合）"""
+def get_system_prompt(intent):
+    """根据意图获取对应的Agent提示词"""
+    return AGENT_PROMPTS.get(intent, AGENT_PROMPTS["general"])
 
 def strip_md(text):
     """去掉所有#和*的markdown符号"""
@@ -104,10 +204,15 @@ def acp_post(path, body=None):
         headers={"Authorization": ACP_AUTH, "Content-Type": "application/json"},
         method="POST"
     )
-    with urllib.request.urlopen(req, timeout=60) as r:
+    with urllib.request.urlopen(req, timeout=30) as r:
         return json.loads(r.read().decode("utf-8"))
 
 def call_ai(sid, user_msg):
+    # ── IntentGate：意图分类 → 选择专业Agent ──
+    intent = classify_intent(user_msg)
+    agent_prompt = get_system_prompt(intent)
+    _log_ai(f"[IntentGate] '{user_msg[:30]}' → {intent}")
+
     history = get_history(sid)
     ACP_SESSIONS = getattr(call_ai, "acp_sessions", {})
     call_ai.acp_sessions = ACP_SESSIONS
@@ -119,37 +224,42 @@ def call_ai(sid, user_msg):
             ses_id = ses.get("id")
             if ses_id:
                 ACP_SESSIONS[sid] = ses_id
-                acp_post(f"/session/{ses_id}/message", {"parts": [{"type": "text", "text": XIAOZHI_SYSTEM}]})
+                try:
+                    acp_post(f"/session/{ses_id}/message", {"parts": [{"type": "text", "text": XIAOZHI_SYSTEM}]})
+                except Exception as e:
+                    _log_ai(f"[ACP] init msg failed (non-fatal): {e}")
             else:
-                with open(BASE / "error.log", "a", encoding="utf-8") as f:
-                    f.write(f"[ACP] create session returned no id: {ses}\n")
+                _log_ai(f"[ACP] create session returned no id: {ses}")
         except Exception as e:
-            with open(BASE / "error.log", "a", encoding="utf-8") as f:
-                f.write(f"[ACP] create session exception: {type(e).__name__}: {e}\n")
+            _log_ai(f"[ACP] create session exception: {type(e).__name__}: {e}")
             ses_id = None
 
     if ses_id:
-        history.append({"role": "user", "content": user_msg})
+        # 用意图前缀包装消息，让ACP知道切换角色
+        wrapped_msg = f"[你是{intent}专家] {user_msg}"
+        history.append({"role": "user", "content": wrapped_msg})
         ctx = "\n".join(
             f"{'小朋友' if m['role']=='user' else '小智'}：{m['content']}"
             for m in history
         )
         prompt = f"{ctx}\n\n小智的回答："
         try:
+            _log_ai(f"[ACP] sending msg (len={len(prompt)})")
             resp = acp_post(f"/session/{ses_id}/message", {"parts": [{"type": "text", "text": prompt}]})
             for part in resp.get("parts", []):
                 if part.get("type") == "text" and part.get("text", "").strip():
                     reply = strip_md(part["text"].strip())
                     history.append({"role": "assistant", "content": reply})
+                    _log_ai(f"[ACP] reply OK (len={len(reply)})")
                     return reply
         except Exception as e:
-            with open(BASE / "error.log", "a", encoding="utf-8") as f:
-                f.write(f"[ACP Error] {type(e).__name__}: {e}\n")
+            _log_ai(f"[ACP Error] {type(e).__name__}: {e}")
             pass
 
+    # ── Agnes/DeepSeek fallback：直接注入意图提示词 ──
     headers = {"Content-Type": "application/json", "Authorization": f"Bearer {AI_KEY}"}
-    messages = [{"role": "system", "content": XIAOZHI_SYSTEM}] + history[-20:]
-    models_to_try = [AI_MODEL, "agnes-1.5-flash", "gpt-4o-mini", "gpt-3.5-turbo"]
+    messages = [{"role": "system", "content": agent_prompt}] + history[-20:]
+    models_to_try = [AI_MODEL, "agnes-2.5-flash", "agnes-1.5-flash", "gpt-4o-mini", "gpt-3.5-turbo"]
     for model in models_to_try:
         body = {"model": model, "messages": messages, "max_tokens": 2000, "temperature": 0.7}
         try:
@@ -261,15 +371,26 @@ def burn_arduino(code):
         shutil.rmtree(tmp, ignore_errors=True)
         return False, f"烧录异常：{e}"
 
-def tts_sync(text):
+def tts_sync(text, voice="zh-CN-XiaoxiaoNeural"):
     from edge_tts import Communicate
     chunks = []
-    for chunk in Communicate(text, "zh-CN-XiaoxiaoNeural", rate="-20%").stream_sync():
+    for chunk in Communicate(text, voice, rate="-20%").stream_sync():
         if chunk["type"] == "audio":
             chunks.append(chunk["data"])
     if not chunks:
         raise Exception("TTS 没有生成音频数据")
     return chunks
+
+# 角色→声音映射
+ROLE_VOICES = {
+    "general": "zh-CN-XiaoxiaoNeural",
+    "learn":   "zh-CN-XiaoxiaoNeural",
+    "code":    "zh-CN-YunxiNeural",
+    "wiring":  "zh-CN-YunxiNeural",
+    "debug":   "zh-CN-YunyangNeural",
+}
+# 会话意图记忆
+_session_intent = {}
 
 class Handler(http.server.BaseHTTPRequestHandler):
     def do_GET(self):
@@ -322,15 +443,20 @@ class Handler(http.server.BaseHTTPRequestHandler):
         if path == "/api/chat":
             sid = body.get("session_id", "default")
             msg = body.get("message", "")
+            intent = classify_intent(msg)
+            _session_intent[sid] = intent
             result = call_ai(sid, msg)
-            self.send_json({"reply": result})
+            self.send_json({"reply": result, "intent": intent})
         elif path == "/api/tts":
             text = body.get("text", "")
+            sid = body.get("session_id", "default")
             if not text.strip():
                 self.send_json({"ok": False, "msg": "text empty"})
                 return
+            intent = _session_intent.get(sid, "general")
+            voice = ROLE_VOICES.get(intent, "zh-CN-XiaoxiaoNeural")
             try:
-                audio_data = tts_sync(text)
+                audio_data = tts_sync(text, voice)
                 b64 = base64.b64encode(b"".join(audio_data)).decode("utf-8")
                 self.send_json({"ok": True, "data": b64})
             except Exception as e:
@@ -444,7 +570,9 @@ def main():
     if not AI_KEY:
         print(f"[XiaoZhi] WARNING: ai_key not set in config.json")
     print(f"[XiaoZhi] http://localhost:{port} | model: {AI_MODEL}", flush=True)
-    server = http.server.HTTPServer(("127.0.0.1", port), Handler)
+    class ThreadedHTTPServer(socketserver.ThreadingMixIn, http.server.HTTPServer):
+        daemon_threads = True
+    server = ThreadedHTTPServer(("127.0.0.1", port), Handler)
     threading.Timer(1.5, lambda: webbrowser.open(f"http://localhost:{port}")).start()
     try:
         server.serve_forever()
